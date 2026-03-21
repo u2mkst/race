@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>KST 레이스 룰렛</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<style>
+body{margin:0;background:#111827;color:white;text-align:center;font-family:sans-serif}
+button{padding:10px 20px;margin:5px;border:none;border-radius:10px;background:#ff5722;color:white}
+
+.lane{
+position:relative;
+height:90px;
+margin:10px;
+border-radius:12px;
+background:linear-gradient(to bottom,#6b7280 0%,#6b7280 45%,#fff 45%,#fff 55%,#6b7280 55%);
+}
+
+.kart{
+position:absolute;
+left:0;
+top:50%;
+transform:translateY(-50%);
+display:flex;
+gap:8px;
+align-items:center;
+}
+
+.face{width:38px;height:38px;border-radius:50%;border:2px solid white}
+.nameTag{background:black;padding:5px 10px;border-radius:8px}
+
+#finishLine{
+position:fixed;
+right:120px;
+width:60px;height:100%;
+background:repeating-linear-gradient(45deg,white 0,white 15px,black 15px,black 30px)
+}
+
+#count{
+position:fixed;
+top:50%;left:50%;
+transform:translate(-50%,-50%);
+font-size:120px
+}
+
+#result{
+position:fixed;
+top:50%;left:50%;
+transform:translate(-50%,-50%) scale(0);
+background:white;color:black;
+padding:30px;border-radius:20px
+}
+
+#result.show{transform:translate(-50%,-50%) scale(1)}
+
+#podium{
+display:flex;
+justify-content:center;
+align-items:flex-end;
+gap:20px
+}
+
+.podiumBox{
+width:130px;
+display:flex;
+flex-direction:column;
+align-items:center
+}
+
+.first{height:200px;background:gold}
+.second{height:150px;background:silver}
+.third{height:120px;background:#cd7f32}
+
+.linkBtn{
+display:inline-block;
+padding:10px;
+background:#2563eb;
+color:white;
+border-radius:10px;
+text-decoration:none
+}
+
+#admin{
+display:none;
+background:white;color:black;
+padding:20px
+}
+</style>
+</head>
+
+<body>
+
+<div id="menu">
+<h1 id="title">🏁 KST 레이스 룰렛</h1>
+
+<button onclick="openNormal()">일반 모드</button>
+<button onclick="startFixed()">고정 모드</button>
+<button onclick="runUltraFixed()">고정 100번 시뮬</button>
+
+<br>
+
+<a class="linkBtn" href="https://wheelofnames.com/ko/ggq-yvj" target="_blank">돌림판 돌리러 가기</a>
+<a class="linkBtn" href="https://lazygyu.github.io/roulette/" target="_blank">마블 룰렛</a>
+
+<div id="normal" style="display:none">
+<div id="players"></div>
+<button onclick="addPlayer()">플레이어 추가</button>
+<button onclick="startNormal()">시작</button>
+<button onclick="runUltraNormal()">일반 100번 시뮬</button>
+</div>
+</div>
+
+<div id="raceScreen" style="display:none">
+<div id="finishLine"></div>
+<div id="game"></div>
+<div id="count"></div>
+</div>
+
+<div id="result">
+<h2 id="resultTitle">🏆 결과</h2>
+<div id="resultList"></div>
+<button onclick="location.reload()">닫기</button>
+</div>
+
+<div id="admin">
+<h2>관리자 모드</h2>
+<div id="adminPlayers"></div>
+<button onclick="addAdmin()">추가</button>
+<button onclick="saveAdmin()">저장</button>
+<button onclick="closeAdmin()">닫기</button>
+</div>
+
+<script>
+
+const firebaseConfig = {
+  apiKey: "AIzaSyBdi2A9mhw-ZyDbunhfv1wLalbq2X3pd58",
+  authDomain: "racerullet.firebaseapp.com",
+  projectId: "racerullet",
+  storageBucket: "racerullet.firebasestorage.app",
+  messagingSenderId: "926630704709",
+  appId: "1:926630704709:web:4ecc1cb7c5db0d67ecd52c",
+  measurementId: "G-NTXT7FZ7S3"
+};
+firebase.initializeApp(firebaseConfig)
+const db=firebase.database()
+
+let playerNames=[],playerImages=[],finished=[]
+let clickCount=0
+
+title.onclick=()=>{
+clickCount++
+if(clickCount>=5){
+menu.style.display="none"
+admin.style.display="block"
+loadAdmin()
+}
+}
+
+/* 관리자 */
+function loadAdmin(){
+db.ref("racePlayers").once("value").then(s=>{
+adminPlayers.innerHTML=""
+Object.values(s.val()||{}).forEach(p=>{
+createAdminRow(p.name,p.img)
+})
+})
+}
+
+function createAdminRow(name="",img=""){
+let row=document.createElement("div")
+row.innerHTML=`
+<input class="name" value="${name}">
+<input type="file">
+<img src="${img}" width="40">
+<button onclick="this.parentElement.remove()">삭제</button>
+`
+let file=row.querySelector("input[type=file]")
+let image=row.querySelector("img")
+file.onchange=e=>{
+let r=new FileReader()
+r.onload=a=>image.src=a.target.result
+r.readAsDataURL(e.target.files[0])
+}
+adminPlayers.appendChild(row)
+}
+
+function addAdmin(){createAdminRow()}
+
+function saveAdmin(){
+let data={}
+document.querySelectorAll("#adminPlayers div").forEach((r,i)=>{
+let name=r.querySelector(".name").value
+let img=r.querySelector("img").src
+if(name.trim()!="") data["p"+(i+1)]={name,img}
+})
+db.ref("racePlayers").set(data)
+alert("저장 완료")
+}
+
+function closeAdmin(){
+admin.style.display="none"
+menu.style.display="block"
+}
+
+/* 일반 */
+function openNormal(){normal.style.display="block"}
+
+function addPlayer(){
+let d=document.createElement("div")
+d.innerHTML=`
+<input class="name">
+<input type="file">
+<img width="40">
+<button onclick="this.parentElement.remove()">삭제</button>`
+let file=d.querySelector("input[type=file]")
+let img=d.querySelector("img")
+file.onchange=e=>{
+let r=new FileReader()
+r.onload=a=>img.src=a.target.result
+r.readAsDataURL(e.target.files[0])
+}
+players.appendChild(d)
+}
+
+function startNormal(){
+playerNames=[];playerImages=[];finished=[]
+document.querySelectorAll("#players div").forEach(p=>{
+playerNames.push(p.querySelector(".name").value||"Player")
+playerImages.push(p.querySelector("img").src)
+})
+startRace()
+}
+
+/* 고정 */
+function startFixed(){
+db.ref("racePlayers").once("value").then(s=>{
+playerNames=[];playerImages=[];finished=[]
+Object.values(s.val()).forEach(p=>{
+playerNames.push(p.name)
+playerImages.push(p.img)
+})
+startRace()
+})
+}
+
+/* 레이스 */
+function startRace(){
+menu.style.display="none"
+raceScreen.style.display="block"
+game.innerHTML=""
+
+playerNames.forEach((p,i)=>{
+let lane=document.createElement("div")
+lane.className="lane"
+let kart=document.createElement("div")
+kart.className="kart"
+kart.innerHTML=`<img class="face" src="${playerImages[i]}"><div class="nameTag">${p}</div>`
+lane.appendChild(kart)
+game.appendChild(lane)
+})
+
+countdown()
+}
+
+function countdown(){
+let c=3
+count.innerText=c
+let t=setInterval(()=>{
+c--
+if(c>0) count.innerText=c
+else if(c==0) count.innerText="GO!"
+else{count.innerText="";clearInterval(t);runRace()}
+},1000)
+}
+
+function runRace(){
+let karts=[...document.querySelectorAll(".kart")]
+let pos=new Array(playerNames.length).fill(0)
+let finishX=window.innerWidth-200
+
+let interval=setInterval(()=>{
+let order=playerNames.map((p,i)=>({i,pos:pos[i]}))
+order.sort((a,b)=>a.pos-b.pos)
+let last=order[0].i
+
+karts.forEach((k,i)=>{
+if(finished.includes(playerNames[i])) return
+let speed=Math.random()*8
+if(i==last) speed+=3
+
+if(Math.random()<0.02){
+speed+=40
+k.querySelector(".nameTag").innerText=playerNames[i]+" 🔥속도폭발!!"
+setTimeout(()=>k.querySelector(".nameTag").innerText=playerNames[i],800)
+}
+
+pos[i]+=speed
+k.style.left=pos[i]+"px"
+
+if(pos[i]>=finishX&&!finished.includes(playerNames[i])){
+finished.push(playerNames[i])
+}
+})
+
+if(finished.length===playerNames.length){
+clearInterval(interval)
+setTimeout(showResult,1000)
+}
+},80)
+}
+
+/* 결과 */
+function showResult(){
+let html=`
+<div id="podium">
+<div class="podiumBox second">2등 ${finished[1]}</div>
+<div class="podiumBox first">1등 ${finished[0]}</div>
+<div class="podiumBox third">3등 ${finished[2]}</div>
+</div>
+`
+resultList.innerHTML=html
+result.classList.add("show")
+}
+
+/* ULTRA 시뮬 */
+function simulate(names){
+let win={}
+names.forEach(n=>win[n]=0)
+
+for(let r=0;r<100;r++){
+let pos=new Array(names.length).fill(0)
+let finished=[]
+while(finished.length<names.length){
+let order=names.map((n,i)=>({i,pos:pos[i]}))
+order.sort((a,b)=>a.pos-b.pos)
+let last=order[0].i
+for(let i=0;i<names.length;i++){
+if(finished.includes(names[i]))continue
+let speed=Math.random()*8
+if(i==last) speed+=3
+if(Math.random()<0.02) speed+=40
+pos[i]+=speed
+if(pos[i]>=1000&&!finished.includes(names[i])){
+finished.push(names[i])
+}
+}
+}
+win[finished[0]]++
+}
+return win
+}
+
+function runUltraNormal(){
+let names=[]
+document.querySelectorAll("#players div").forEach(p=>{
+names.push(p.querySelector(".name").value||"Player")
+})
+runUltra(names)
+}
+
+function runUltraFixed(){
+db.ref("racePlayers").once("value").then(s=>{
+let names=[]
+Object.values(s.val()).forEach(p=>names.push(p.name))
+runUltra(names)
+})
+}
+
+function runUltra(names){
+resultTitle.innerText="분석중..."
+resultList.innerHTML="⏳ 분석중..."
+result.classList.add("show")
+
+setTimeout(()=>{
+let r=simulate(names)
+let arr=Object.entries(r).sort((a,b)=>b[1]-a[1])
+
+let html=`
+<div id="podium">
+<div class="podiumBox second">${arr[1][0]}</div>
+<div class="podiumBox first">${arr[0][0]}</div>
+<div class="podiumBox third">${arr[2][0]}</div>
+</div>
+`
+
+arr.forEach(([n,c])=>{
+html+=`${n} - ${c}승<br>`
+})
+
+resultList.innerHTML=html
+},500)
+}
+
+for(let i=0;i<4;i++) addPlayer()
+
+</script>
+</body>
+</html>
