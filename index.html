@@ -8,39 +8,64 @@
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <style>
-body{
-margin:0;
-background:linear-gradient(135deg,#0f172a,#1e293b);
-color:white;
-text-align:center;
-font-family:sans-serif;
+body{margin:0;background:#111827;color:white;text-align:center;font-family:sans-serif}
+button{padding:10px 20px;margin:5px;border:none;border-radius:10px;background:#ff5722;color:white}
+
+.lane{
+position:relative;
+height:90px;
+margin:10px;
+border-radius:12px;
+background:linear-gradient(to bottom,#6b7280 0%,#6b7280 45%,#fff 45%,#fff 55%,#6b7280 55%);
 }
 
-button{
-padding:10px 20px;
-margin:5px;
-border:none;
-border-radius:12px;
-background:rgba(255,255,255,0.1);
-color:white;
+.kart{
+position:absolute;
+left:0;
+top:50%;
+transform:translateY(-50%);
+display:flex;
+gap:8px;
+align-items:center;
+}
+
+.face{width:38px;height:38px;border-radius:50%;border:2px solid white}
+.nameTag{background:black;padding:5px 10px;border-radius:8px}
+
+#finishLine{
+position:fixed;
+right:120px;
+width:60px;height:100%;
+background:repeating-linear-gradient(45deg,white 0,white 15px,black 15px,black 30px)
+}
+
+#count{
+position:fixed;
+top:50%;left:50%;
+transform:translate(-50%,-50%);
+font-size:120px
 }
 
 #result{
 position:fixed;
 top:50%;left:50%;
 transform:translate(-50%,-50%) scale(0);
-background:rgba(255,255,255,0.1);
-padding:20px;
-border-radius:20px;
+background:white;color:black;
+padding:30px;border-radius:20px
 }
 #result.show{transform:translate(-50%,-50%) scale(1)}
 
-.lane{height:80px;background:#444;margin:10px;border-radius:10px;position:relative}
-.kart{position:absolute;top:50%;transform:translateY(-50%)}
+#podium{display:flex;justify-content:center;align-items:flex-end;gap:20px}
+.podiumBox{width:130px;display:flex;flex-direction:column;align-items:center}
+.first{height:200px;background:gold}
+.second{height:150px;background:silver}
+.third{height:120px;background:#cd7f32}
+
+.rankList{margin-top:10px;text-align:left}
 </style>
 </head>
 
-<body>
+<body onclick="startAudioOnce()">
 
 <audio id="bgm" loop>
 <source src="bgm.mp3" type="audio/mpeg">
@@ -54,13 +79,14 @@ border-radius:20px;
 
 <div id="normal" style="display:none">
 <div id="players"></div>
-<button onclick="addPlayer()">추가</button>
+<button onclick="addPlayer()">플레이어 추가</button>
 <button onclick="startNormal()">시작</button>
 <button onclick="runUltraNormal()">일반 100번 시뮬</button>
 </div>
 </div>
 
 <div id="raceScreen" style="display:none">
+<div id="finishLine"></div>
 <div id="game"></div>
 <div id="count"></div>
 </div>
@@ -81,36 +107,45 @@ border-radius:20px;
 
 <script>
 
-/* 🔥 DOM 연결 (핵심) */
-const menu = document.getElementById("menu")
-const normal = document.getElementById("normal")
-const players = document.getElementById("players")
-const raceScreen = document.getElementById("raceScreen")
-const game = document.getElementById("game")
-const count = document.getElementById("count")
-const result = document.getElementById("result")
-const resultTitle = document.getElementById("resultTitle")
-const resultList = document.getElementById("resultList")
-const admin = document.getElementById("admin")
-const adminPlayers = document.getElementById("adminPlayers")
-const title = document.getElementById("title")
-const bgm = document.getElementById("bgm")
+/* DOM */
+const menu=document.getElementById("menu")
+const normal=document.getElementById("normal")
+const players=document.getElementById("players")
+const raceScreen=document.getElementById("raceScreen")
+const game=document.getElementById("game")
+const count=document.getElementById("count")
+const result=document.getElementById("result")
+const resultTitle=document.getElementById("resultTitle")
+const resultList=document.getElementById("resultList")
+const admin=document.getElementById("admin")
+const adminPlayers=document.getElementById("adminPlayers")
+const title=document.getElementById("title")
+const bgm=document.getElementById("bgm")
 
-/* 🔥 Firebase (하나만!) */
-const firebaseConfig = {
-  apiKey: "YOUR_KEY",
-  authDomain: "racerullet.firebaseapp.com",
-  projectId: "racerullet",
-  databaseURL: "https://racerullet-default-rtdb.firebaseio.com/"
+/* Firebase */
+const firebaseConfig={
+apiKey:"YOUR_KEY",
+authDomain:"racerullet.firebaseapp.com",
+projectId:"racerullet",
+databaseURL:"https://racerullet-default-rtdb.firebaseio.com/"
 }
 firebase.initializeApp(firebaseConfig)
-const db = firebase.database()
+const db=firebase.database()
+
+/* 오디오 */
+let audioStarted=false
+function startAudioOnce(){
+if(!audioStarted){
+bgm.play().catch(()=>{})
+audioStarted=true
+}
+}
 
 /* 변수 */
 let playerNames=[],playerImages=[],finished=[]
 let clickCount=0
 
-/* 관리자 진입 */
+/* 관리자 */
 title.onclick=()=>{
 clickCount++
 if(clickCount>=5){
@@ -120,7 +155,6 @@ loadAdmin()
 }
 }
 
-/* 관리자 */
 function loadAdmin(){
 db.ref("racePlayers").once("value").then(s=>{
 adminPlayers.innerHTML=""
@@ -132,8 +166,7 @@ createAdminRow(p.name,p.img)
 
 function createAdminRow(name="",img=""){
 let row=document.createElement("div")
-row.innerHTML=`
-<input class="name" value="${name}">
+row.innerHTML=`<input class="name" value="${name}">
 <input type="file">
 <img src="${img}" width="40">
 <button onclick="this.parentElement.remove()">삭제</button>`
@@ -170,8 +203,7 @@ function openNormal(){normal.style.display="block"}
 
 function addPlayer(){
 let d=document.createElement("div")
-d.innerHTML=`
-<input class="name">
+d.innerHTML=`<input class="name">
 <input type="file">
 <img width="40">
 <button onclick="this.parentElement.remove()">삭제</button>`
@@ -220,7 +252,7 @@ let lane=document.createElement("div")
 lane.className="lane"
 let kart=document.createElement("div")
 kart.className="kart"
-kart.innerHTML=`<img src="${playerImages[i]}" width="30"> ${p}`
+kart.innerHTML=`<img class="face" src="${playerImages[i]}"><div class="nameTag">${p}</div>`
 lane.appendChild(kart)
 game.appendChild(lane)
 })
@@ -242,14 +274,29 @@ else{count.innerText="";clearInterval(t);runRace()}
 function runRace(){
 let karts=[...document.querySelectorAll(".kart")]
 let pos=new Array(playerNames.length).fill(0)
+let finishX=window.innerWidth-200
 
 let interval=setInterval(()=>{
+let order=playerNames.map((p,i)=>({i,pos:pos[i]}))
+order.sort((a,b)=>a.pos-b.pos)
+let last=order[0].i
+
 karts.forEach((k,i)=>{
 if(finished.includes(playerNames[i])) return
-pos[i]+=Math.random()*8
+
+let speed=Math.random()*8
+if(i==last) speed+=3
+
+if(Math.random()<0.02){
+speed+=40
+k.querySelector(".nameTag").innerText=playerNames[i]+" 🔥"
+setTimeout(()=>k.querySelector(".nameTag").innerText=playerNames[i],800)
+}
+
+pos[i]+=speed
 k.style.left=pos[i]+"px"
 
-if(pos[i]>=800&&!finished.includes(playerNames[i])){
+if(pos[i]>=finishX&&!finished.includes(playerNames[i])){
 finished.push(playerNames[i])
 }
 })
@@ -263,11 +310,19 @@ setTimeout(showResult,1000)
 
 /* 결과 */
 function showResult(){
-let html=`🥇 ${finished[0]}<br>🥈 ${finished[1]}<br>🥉 ${finished[2]}<br><hr>`
+let html=`<div id="podium">
+<div class="podiumBox second">2등 ${finished[1]}</div>
+<div class="podiumBox first">1등 ${finished[0]}</div>
+<div class="podiumBox third">3등 ${finished[2]}</div>
+</div><div class="rankList">`
+
 for(let i=3;i<finished.length;i++){
 html+=`${i+1}등 ${finished[i]}<br>`
 }
-resultTitle.innerText="결과"
+
+html+=`</div>`
+
+resultTitle.innerText="🏆 결과"
 resultList.innerHTML=html
 result.classList.add("show")
 }
@@ -278,28 +333,52 @@ let win={}
 names.forEach(n=>win[n]=0)
 
 for(let r=0;r<100;r++){
-let arr=[...names].sort(()=>Math.random()-0.5)
-win[arr[0]]++
+let pos=new Array(names.length).fill(0)
+let finished=[]
+while(finished.length<names.length){
+let order=names.map((n,i)=>({i,pos:pos[i]}))
+order.sort((a,b)=>a.pos-b.pos)
+let last=order[0].i
+for(let i=0;i<names.length;i++){
+if(finished.includes(names[i]))continue
+let speed=Math.random()*8
+if(i==last) speed+=3
+if(Math.random()<0.02) speed+=40
+pos[i]+=speed
+if(pos[i]>=1000&&!finished.includes(names[i])){
+finished.push(names[i])
+}
+}
+}
+win[finished[0]]++
 }
 return win
 }
 
 function runUltra(names){
 resultTitle.innerText="분석중..."
-resultList.innerHTML="⏳"
+resultList.innerHTML="⏳ 분석중..."
 result.classList.add("show")
 
 setTimeout(()=>{
 let r=simulate(names)
 let arr=Object.entries(r).sort((a,b)=>b[1]-a[1])
 
-let html=""
+let html=`<div id="podium">
+<div class="podiumBox second">${arr[1][0]}</div>
+<div class="podiumBox first">${arr[0][0]}</div>
+<div class="podiumBox third">${arr[2][0]}</div>
+</div><div class="rankList">`
+
 arr.forEach(([n,c],i)=>{
 html+=`${i+1}등 ${n} (${c}승)<br>`
 })
 
-resultTitle.innerText="분석 결과"
+html+=`</div>`
+
+resultTitle.innerText="📊 분석 결과"
 resultList.innerHTML=html
+
 },500)
 }
 
@@ -319,7 +398,6 @@ runUltra(names)
 })
 }
 
-/* 초기 */
 for(let i=0;i<4;i++) addPlayer()
 
 </script>
