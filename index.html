@@ -14,7 +14,6 @@ background:linear-gradient(135deg,#0f172a,#1e293b);
 color:white;
 text-align:center;
 font-family:sans-serif;
-overflow:hidden;
 }
 
 button{
@@ -23,44 +22,309 @@ margin:5px;
 border:none;
 border-radius:12px;
 background:rgba(255,255,255,0.1);
-backdrop-filter:blur(10px);
 color:white;
-box-shadow:0 0 10px rgba(255,255,255,0.2);
-}
-
-.glass{
-background:rgba(255,255,255,0.08);
-backdrop-filter:blur(15px);
-border-radius:20px;
-box-shadow:0 0 30px rgba(0,0,0,0.3);
 }
 
 #result{
 position:fixed;
 top:50%;left:50%;
 transform:translate(-50%,-50%) scale(0);
-padding:30px;
-width:320px;
+background:rgba(255,255,255,0.1);
+padding:20px;
+border-radius:20px;
 }
 #result.show{transform:translate(-50%,-50%) scale(1)}
 
-#podium{display:flex;justify-content:center;align-items:flex-end;gap:15px}
+.lane{height:80px;background:#444;margin:10px;border-radius:10px;position:relative}
+.kart{position:absolute;top:50%;transform:translateY(-50%)}
+</style>
+</head>
 
-.podiumBox{
-width:90px;
-border-radius:15px;
-padding:10px;
+<body>
+
+<audio id="bgm" loop>
+<source src="bgm.mp3" type="audio/mpeg">
+</audio>
+
+<div id="menu">
+<h1 id="title">🏁 KST 레이스 룰렛</h1>
+<button onclick="openNormal()">일반 모드</button>
+<button onclick="startFixed()">고정 모드</button>
+<button onclick="runUltraFixed()">고정 100번 시뮬</button>
+
+<div id="normal" style="display:none">
+<div id="players"></div>
+<button onclick="addPlayer()">추가</button>
+<button onclick="startNormal()">시작</button>
+<button onclick="runUltraNormal()">일반 100번 시뮬</button>
+</div>
+</div>
+
+<div id="raceScreen" style="display:none">
+<div id="game"></div>
+<div id="count"></div>
+</div>
+
+<div id="result">
+<h2 id="resultTitle"></h2>
+<div id="resultList"></div>
+<button onclick="location.reload()">닫기</button>
+</div>
+
+<div id="admin" style="display:none">
+<h2>관리자 모드</h2>
+<div id="adminPlayers"></div>
+<button onclick="addAdmin()">추가</button>
+<button onclick="saveAdmin()">저장</button>
+<button onclick="closeAdmin()">닫기</button>
+</div>
+
+<script>
+
+/* 🔥 DOM 연결 (핵심) */
+const menu = document.getElementById("menu")
+const normal = document.getElementById("normal")
+const players = document.getElementById("players")
+const raceScreen = document.getElementById("raceScreen")
+const game = document.getElementById("game")
+const count = document.getElementById("count")
+const result = document.getElementById("result")
+const resultTitle = document.getElementById("resultTitle")
+const resultList = document.getElementById("resultList")
+const admin = document.getElementById("admin")
+const adminPlayers = document.getElementById("adminPlayers")
+const title = document.getElementById("title")
+const bgm = document.getElementById("bgm")
+
+/* 🔥 Firebase (하나만!) */
+const firebaseConfig = {
+  apiKey: "YOUR_KEY",
+  authDomain: "racerullet.firebaseapp.com",
+  projectId: "racerullet",
+  databaseURL: "https://racerullet-default-rtdb.firebaseio.com/"
+}
+firebase.initializeApp(firebaseConfig)
+const db = firebase.database()
+
+/* 변수 */
+let playerNames=[],playerImages=[],finished=[]
+let clickCount=0
+
+/* 관리자 진입 */
+title.onclick=()=>{
+clickCount++
+if(clickCount>=5){
+menu.style.display="none"
+admin.style.display="block"
+loadAdmin()
+}
 }
 
-.first{background:gold}
-.second{background:silver}
-.third{background:#cd7f32}
+/* 관리자 */
+function loadAdmin(){
+db.ref("racePlayers").once("value").then(s=>{
+adminPlayers.innerHTML=""
+Object.values(s.val()||{}).forEach(p=>{
+createAdminRow(p.name,p.img)
+})
+})
+}
 
-.rankList{margin-top:10px;text-align:left;max-height:200px;overflow:auto}
+function createAdminRow(name="",img=""){
+let row=document.createElement("div")
+row.innerHTML=`
+<input class="name" value="${name}">
+<input type="file">
+<img src="${img}" width="40">
+<button onclick="this.parentElement.remove()">삭제</button>`
+let file=row.querySelector("input[type=file]")
+let image=row.querySelector("img")
+file.onchange=e=>{
+let r=new FileReader()
+r.onload=a=>image.src=a.target.result
+r.readAsDataURL(e.target.files[0])
+}
+adminPlayers.appendChild(row)
+}
 
-.lane{height:90px;margin:10px;background:#444;border-radius:12px;position:relative}
-.kart{position:absolute;top:50%;transform:translateY(-50%)}
-.face{width:38px;height:38px;border-radius:50%}
+function addAdmin(){createAdminRow()}
+
+function saveAdmin(){
+let data={}
+document.querySelectorAll("#adminPlayers div").forEach((r,i)=>{
+let name=r.querySelector(".name").value
+let img=r.querySelector("img").src
+if(name) data["p"+i]={name,img}
+})
+db.ref("racePlayers").set(data)
+alert("저장 완료")
+}
+
+function closeAdmin(){
+admin.style.display="none"
+menu.style.display="block"
+}
+
+/* 일반 */
+function openNormal(){normal.style.display="block"}
+
+function addPlayer(){
+let d=document.createElement("div")
+d.innerHTML=`
+<input class="name">
+<input type="file">
+<img width="40">
+<button onclick="this.parentElement.remove()">삭제</button>`
+let file=d.querySelector("input[type=file]")
+let img=d.querySelector("img")
+file.onchange=e=>{
+let r=new FileReader()
+r.onload=a=>img.src=a.target.result
+r.readAsDataURL(e.target.files[0])
+}
+players.appendChild(d)
+}
+
+function startNormal(){
+playerNames=[];playerImages=[];finished=[]
+document.querySelectorAll("#players div").forEach(p=>{
+playerNames.push(p.querySelector(".name").value||"Player")
+playerImages.push(p.querySelector("img").src)
+})
+startRace()
+}
+
+/* 고정 */
+function startFixed(){
+db.ref("racePlayers").once("value").then(s=>{
+playerNames=[];playerImages=[];finished=[]
+Object.values(s.val()||{}).forEach(p=>{
+playerNames.push(p.name)
+playerImages.push(p.img)
+})
+startRace()
+})
+}
+
+/* 레이스 */
+function startRace(){
+menu.style.display="none"
+raceScreen.style.display="block"
+game.innerHTML=""
+
+bgm.currentTime=0
+bgm.play().catch(()=>{})
+
+playerNames.forEach((p,i)=>{
+let lane=document.createElement("div")
+lane.className="lane"
+let kart=document.createElement("div")
+kart.className="kart"
+kart.innerHTML=`<img src="${playerImages[i]}" width="30"> ${p}`
+lane.appendChild(kart)
+game.appendChild(lane)
+})
+
+countdown()
+}
+
+function countdown(){
+let c=3
+count.innerText=c
+let t=setInterval(()=>{
+c--
+if(c>0) count.innerText=c
+else if(c==0) count.innerText="GO!"
+else{count.innerText="";clearInterval(t);runRace()}
+},1000)
+}
+
+function runRace(){
+let karts=[...document.querySelectorAll(".kart")]
+let pos=new Array(playerNames.length).fill(0)
+
+let interval=setInterval(()=>{
+karts.forEach((k,i)=>{
+if(finished.includes(playerNames[i])) return
+pos[i]+=Math.random()*8
+k.style.left=pos[i]+"px"
+
+if(pos[i]>=800&&!finished.includes(playerNames[i])){
+finished.push(playerNames[i])
+}
+})
+
+if(finished.length===playerNames.length){
+clearInterval(interval)
+setTimeout(showResult,1000)
+}
+},80)
+}
+
+/* 결과 */
+function showResult(){
+let html=`🥇 ${finished[0]}<br>🥈 ${finished[1]}<br>🥉 ${finished[2]}<br><hr>`
+for(let i=3;i<finished.length;i++){
+html+=`${i+1}등 ${finished[i]}<br>`
+}
+resultTitle.innerText="결과"
+resultList.innerHTML=html
+result.classList.add("show")
+}
+
+/* 시뮬 */
+function simulate(names){
+let win={}
+names.forEach(n=>win[n]=0)
+
+for(let r=0;r<100;r++){
+let arr=[...names].sort(()=>Math.random()-0.5)
+win[arr[0]]++
+}
+return win
+}
+
+function runUltra(names){
+resultTitle.innerText="분석중..."
+resultList.innerHTML="⏳"
+result.classList.add("show")
+
+setTimeout(()=>{
+let r=simulate(names)
+let arr=Object.entries(r).sort((a,b)=>b[1]-a[1])
+
+let html=""
+arr.forEach(([n,c],i)=>{
+html+=`${i+1}등 ${n} (${c}승)<br>`
+})
+
+resultTitle.innerText="분석 결과"
+resultList.innerHTML=html
+},500)
+}
+
+function runUltraNormal(){
+let names=[]
+document.querySelectorAll("#players div").forEach(p=>{
+names.push(p.querySelector(".name").value||"Player")
+})
+runUltra(names)
+}
+
+function runUltraFixed(){
+db.ref("racePlayers").once("value").then(s=>{
+let names=[]
+Object.values(s.val()||{}).forEach(p=>names.push(p.name))
+runUltra(names)
+})
+}
+
+/* 초기 */
+for(let i=0;i<4;i++) addPlayer()
+
+</script>
+</body>
+</html>.face{width:38px;height:38px;border-radius:50%}
 </style>
 </head>
 
