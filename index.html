@@ -8,14 +8,12 @@
         /* -------------------------------------
            [0] 외부 웹 폰트 정의 (Paperlogy)
         ------------------------------------- */
-        /* 제목용 ExtraBold (800) */
         @font-face {
             font-family: 'Paperozi';
             src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-8ExtraBold.woff2') format('woff2');
             font-weight: 800;
             font-display: swap;
         }
-        /* 일반 본문용 Regular (400) */
         @font-face {
             font-family: 'Paperozi';
             src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2') format('woff2');
@@ -27,7 +25,7 @@
             background-color: #0b0f19;
             color: #a5b1c2;
             font-family: 'Paperozi', 'Segoe UI', sans-serif;
-            font-weight: 400; /* 기본은 Regular */
+            font-weight: 400;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -59,7 +57,7 @@
 
         #readyScreen h1 {
             font-family: 'Paperozi', sans-serif;
-            font-weight: 800; /* 제목용 */
+            font-weight: 800;
             color: #fff;
             font-size: 2.7rem;
             margin: 0 0 8px 0;
@@ -71,15 +69,14 @@
         #readyScreen .desc {
             color: #ccc;
             font-size: 0.95rem;
-            margin-bottom: 30px;
-            font-weight: 400;
+            margin-bottom: 25px;
         }
 
         textarea {
             font-family: 'Paperozi', sans-serif;
             font-weight: 400;
             width: 100%;
-            height: 100px;
+            height: 120px;
             padding: 15px;
             border-radius: 12px;
             border: 2px solid #25334a;
@@ -102,7 +99,7 @@
 
         .action-btn {
             font-family: 'Paperozi', sans-serif;
-            font-weight: 800; /* 강조 */
+            font-weight: 800;
             padding: 16px 70px;
             font-size: 20px;
             color: #fff;
@@ -127,7 +124,7 @@
         #gameScreen {
             display: none;
             width: 100%;
-            max-width: 1100px;
+            max-width: 1000px;
             flex-direction: column;
             align-items: center;
             position: relative;
@@ -137,7 +134,7 @@
             display: flex;
             justify-content: space-between;
             width: 100%;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             padding: 0 10px;
             box-sizing: border-box;
         }
@@ -155,13 +152,45 @@
             animation: blink 0.8s infinite alternate;
         }
 
-        .track-info {
+        /* [신기능] 미니 전광판 스타일 */
+        .mini-map-container {
+            width: 100%;
+            background: #111622;
+            border: 2px solid #25334a;
+            border-radius: 12px;
+            height: 34px;
+            margin-bottom: 15px;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .mini-map-progress {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+        }
+
+        .mini-runner-dot {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            padding: 2px 7px;
+            border-radius: 10px;
             font-family: 'Paperozi', sans-serif;
             font-weight: 800;
-            color: #ffd166;
-            font-size: 14px;
-            text-shadow: 0 0 8px rgba(255,209,102,0.5);
-            align-self: center;
+            font-size: 11px;
+            color: #fff;
+            white-space: nowrap;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.5);
+            transition: left 0.1s linear;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+
+        .mini-endpoint {
+            position: absolute;
+            right: 0; top: 0; bottom: 0;
+            width: 15px;
+            background: repeating-linear-gradient(45deg, #fff, #fff 4px, #000 4px, #000 8px);
         }
 
         @keyframes blink { from { opacity: 0.4; } to { opacity: 1; } }
@@ -172,7 +201,7 @@
             overflow: hidden;
             box-shadow: 0 30px 70px rgba(0,0,0,0.8);
             border: 4px solid #25334a;
-            background-color: #2b2d42;
+            background-color: #1a2436;
         }
 
         canvas {
@@ -206,7 +235,7 @@
         }
 
         /* -------------------------------------
-           [3] 결과 화면 & 3D 입체 시상대 디자인
+           [3] 결과 화면
         ------------------------------------- */
         #resultScreen {
             display: none;
@@ -234,7 +263,6 @@
             letter-spacing: 3px;
         }
 
-        /* 시상대 메인 컨테이너 */
         .podium-container {
             display: flex;
             align-items: flex-end;
@@ -246,7 +274,6 @@
             border-bottom: 4px solid #2d3748;
         }
 
-        /* 시상대 각각의 기둥 베이스 */
         .podium-column {
             display: flex;
             flex-direction: column;
@@ -260,18 +287,16 @@
             box-sizing: border-box;
         }
 
-        /* 기둥 솟아오르는 애니메이션 정의 */
+        .podium-column.animate {
+            animation: riseUp 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.2) forwards;
+        }
+
         @keyframes riseUp {
             0% { transform: scaleY(0); }
             70% { transform: scaleY(1.08); }
             100% { transform: scaleY(1); }
         }
 
-        .podium-column.animate {
-            animation: riseUp 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.2) forwards;
-        }
-
-        /* 상단 텍스트 및 메달 디자인 */
         .podium-user {
             font-family: 'Paperozi', sans-serif;
             font-weight: 800;
@@ -297,7 +322,6 @@
             z-index: 2;
         }
 
-        /* 3D 기둥 박스 그래픽 입히기 */
         .podium-box-graphic {
             font-family: 'Paperozi', sans-serif;
             font-weight: 800;
@@ -312,24 +336,10 @@
             text-shadow: 0 2px 5px rgba(0,0,0,0.4);
         }
 
-        /* 1등, 2등, 3등 높이 및 골드/실버/브론즈 메탈 스킨 구현 */
-        .p-1 { 
-            height: 150px; 
-            background: linear-gradient(135deg, #ffd700, #b38600); 
-            border: 2px solid #ffd700;
-        }
-        .p-2 { 
-            height: 110px; 
-            background: linear-gradient(135deg, #e2e8f0, #718096); 
-            border: 2px solid #cbd5e1;
-        }
-        .p-3 { 
-            height: 80px; 
-            background: linear-gradient(135deg, #cd7f32, #704214); 
-            border: 2px solid #cd7f32;
-        }
+        .p-1 { height: 150px; background: linear-gradient(135deg, #ffd700, #b38600); border: 2px solid #ffd700; }
+        .p-2 { height: 110px; background: linear-gradient(135deg, #e2e8f0, #718096); border: 2px solid #cbd5e1; }
+        .p-3 { height: 80px; background: linear-gradient(135deg, #cd7f32, #704214); border: 2px solid #cd7f32; }
 
-        /* 전체 스크롤 리더보드 리스트 */
         .leaderboard {
             font-family: 'Paperozi', sans-serif;
             font-weight: 400;
@@ -352,11 +362,7 @@
             border-radius: 6px;
         }
         .rank-item:nth-child(even) { background: rgba(255,255,255,0.02); }
-        .rank-item.last { 
-            color: #ef233c; 
-            font-weight: 800; 
-            background: rgba(239, 35, 60, 0.08); 
-        }
+        .rank-item.last { font-weight: 800; color: #ef233c; background: rgba(239, 35, 60, 0.08); }
 
         .retry-btn {
             font-family: 'Paperozi', sans-serif;
@@ -377,7 +383,6 @@
             box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
         }
 
-        /* 폭죽 캔버스 조율 */
         #confettiCanvas {
             position: absolute;
             top: 0; left: 0;
@@ -390,27 +395,35 @@
 </head>
 <body>
 
+    <!-- [1단계] 대기 화면 -->
     <div id="readyScreen">
         <h1>KST RACE</h1>
-        <div class="desc">새로워진 KST 레이스를 만나보세요!</div>
+        <div class="desc">주자 이름을 쉼표(,)로 구분하여 입력하고 레이스를 개시하세요!</div>
         <textarea id="nameInput">한이, 바가, 라면, 진상, 진지, 조교, 제갈태윤, 테무</textarea>
         <button class="action-btn" onclick="goToGame()">시작 🏁</button>
     </div>
 
+    <!-- [2단계] 게임 화면 -->
     <div id="gameScreen">
         <div class="live-header">
             <div class="live-badge">● LIVE TRACKING</div>
-            <div class="track-info" id="camStatus">카메라 모드: 선두 추격 중</div>
         </div>
+        
+        <!-- [신기능] 상단 실시간 미니 전광판 -->
+        <div class="mini-map-container">
+            <div class="mini-map-progress" id="miniMapContainer"></div>
+            <div class="mini-endpoint"></div>
+        </div>
+
         <div class="stadium-box">
-            <canvas id="raceCanvas" width="1000" height="450"></canvas>
+            <canvas id="raceCanvas" width="1000" height="520"></canvas>
         </div>
         <div id="winnerPopup">🥇 WINNER: Kaiser !!</div>
     </div>
 
+    <!-- [3단계] 결과 화면 -->
     <div id="resultScreen">
         <canvas id="confettiCanvas"></canvas>
-
         <h2>KST RACE Result</h2>
         
         <div class="podium-container">
@@ -440,6 +453,96 @@
         const ctx = canvas.getContext('2d');
         const confettiCanvas = document.getElementById('confettiCanvas');
         const cCtx = confettiCanvas.getContext('2d');
+        const miniMapContainer = document.getElementById('miniMapContainer');
+
+        // -------------------------------------
+        // 오디오 신디사이저 엔진
+        // -------------------------------------
+        let audioCtx = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playBoosterSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(850, audioCtx.currentTime + 0.4);
+            
+            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function playStunSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(80, audioCtx.currentTime + 0.35);
+            
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.35);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.35);
+        }
+
+        // 바나나 슬립 전용 사운드 (뾰오오옹- 미끄러지는 효과음)
+        function playBananaSound() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.quadraticRampToValueAtTime(600, audioCtx.currentTime + 0.15);
+            osc.frequency.quadraticRampToValueAtTime(150, audioCtx.currentTime + 0.3);
+            
+            gain.gain.setValueAtTime(0.25, audioCtx.currentTime);
+            gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.3);
+        }
+
+        function playFinishSound() {
+            if (!audioCtx) return;
+            const notes = [261.63, 329.63, 392.00, 523.25]; 
+            const now = audioCtx.currentTime;
+            
+            notes.forEach((freq, index) => {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(freq, now + (index * 0.12));
+                
+                gain.gain.setValueAtTime(0.1, now + (index * 0.12));
+                gain.gain.linearRampToValueAtTime(0.005, now + (index * 0.12) + 0.25);
+                
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start(now + (index * 0.12));
+                osc.stop(now + (index * 0.12) + 0.25);
+            });
+        }
 
         const teamColors = [
             { main: '#ff2a6d', sub: '#ff76b4' },
@@ -452,18 +555,21 @@
 
         let runners = [];
         let items = [];
+        let bananas = []; // [신기능] 설치된 바나나 배열
         let rankRecords = [];
         let confettiParticles = [];
         let animationFrameId;
         let confettiFrameId;
         
+        let camX = 0;
         const startX = 120;
         const finishX = 4500; 
         let laneHeight = 70;
-        let cameraX = 0;
         let firstPlaceDeclared = false;
 
         function goToGame() {
+            initAudio(); 
+
             const names = document.getElementById('nameInput').value.split(',').map(n => n.trim()).filter(n => n !== '');
             if (names.length === 0) return alert("주자 이름을 입력해 주세요!");
 
@@ -475,11 +581,29 @@
             document.getElementById('podium2').classList.remove('animate');
             document.getElementById('podium3').classList.remove('animate');
 
-            laneHeight = Math.max(65, Math.min(85, 450 / names.length));
+            rankRecords = [];
+            firstPlaceDeclared = false;
+            items = [];
+            bananas = [];
+            camX = 0;
+
+            laneHeight = Math.max(55, Math.min(80, 520 / names.length));
             canvas.height = names.length * laneHeight;
 
+            // 전광판 DOM 초기화
+            miniMapContainer.innerHTML = '';
+
             runners = names.map((name, i) => {
+                // 전광판용 엘리먼트 동적 생성
+                const dot = document.createElement('div');
+                dot.className = 'mini-runner-dot';
+                dot.id = `miniDot_${i}`;
+                dot.style.backgroundColor = teamColors[i % teamColors.length].main;
+                dot.innerText = name.slice(0,2);
+                miniMapContainer.appendChild(dot);
+
                 return {
+                    id: i,
                     name: name,
                     x: startX,
                     y: (i * laneHeight) + (laneHeight / 2),
@@ -495,25 +619,24 @@
                 };
             });
 
-            items = [];
             const boxColumns = 8; 
             for (let i = 0; i < runners.length; i++) {
                 const laneY = (i * laneHeight) + (laneHeight / 2);
                 for (let j = 0; j < boxColumns; j++) {
-                    const boxX = 450 + (j * 520) + (Math.random() * 120);
-                    items.push({ x: boxX, y: laneY, active: true, pulse: Math.random() * Math.PI });
+                    items.push({
+                        x: 450 + (j * 520) + (Math.random() * 120),
+                        y: laneY,
+                        active: true,
+                        pulse: Math.random() * Math.PI
+                    });
                 }
             }
-
-            rankRecords = [];
-            cameraX = 0; 
-            firstPlaceDeclared = false;
-            document.getElementById('camStatus').innerText = "카메라 모드: 선두 추격 중";
             
             animationFrameId = requestAnimationFrame(updateRace);
         }
 
         function showWinnerPopup(name) {
+            playFinishSound(); 
             const popup = document.getElementById('winnerPopup');
             popup.innerText = `🥇 1위 ${name} !!`;
             popup.className = 'show';
@@ -524,26 +647,13 @@
             confettiCanvas.width = document.getElementById('resultScreen').clientWidth;
             confettiCanvas.height = document.getElementById('resultScreen').clientHeight;
 
-            const p1 = rankRecords[0] || "없음";
-            const p2 = rankRecords[1] || "없음";
-            const p3 = rankRecords[2] || "없음";
+            document.getElementById('p1Name').innerText = rankRecords[0] || "없음";
+            document.getElementById('p2Name').innerText = rankRecords[1] || "없음";
+            document.getElementById('p3Name').innerText = rankRecords[2] || "없음";
 
-            document.getElementById('p1Name').innerText = p1;
-            document.getElementById('p2Name').innerText = p2;
-            document.getElementById('p3Name').innerText = p3;
-
-            setTimeout(() => {
-                document.getElementById('podium3').classList.add('animate');
-            }, 400);
-
-            setTimeout(() => {
-                document.getElementById('podium2').classList.add('animate');
-            }, 1100);
-
-            setTimeout(() => {
-                document.getElementById('podium1').classList.add('animate');
-                initConfetti(); 
-            }, 1900);
+            setTimeout(() => { document.getElementById('podium3').classList.add('animate'); }, 400);
+            setTimeout(() => { document.getElementById('podium2').classList.add('animate'); }, 1100);
+            setTimeout(() => { document.getElementById('podium1').classList.add('animate'); initConfetti(); }, 1900);
         }
 
         function goToResult() {
@@ -585,13 +695,24 @@
             let lastX = Infinity; 
             let lastRunner = null;
 
+            // [신기능 2] 후방 주자 추격을 위한 선두 위치 미리 파악
+            runners.forEach(r => {
+                if(!r.finished && r.x > leadX) leadX = r.x;
+            });
+
             runners.forEach(runner => {
                 if (!runner.finished) {
                     allFinished = false;
                     unfinishedCount++;
 
+                    // [신기능 2] 후방 역전 버프 판정 (1등과 거리가 400px 이상 벌어지면 분노의 가속 보너스)
+                    let catchUpBuff = 0;
+                    if (leadX - runner.x > 400) {
+                        catchUpBuff = (leadX - runner.x) * 0.004; // 멀어질수록 강해짐
+                    }
+
                     if (runner.status === 'BOOSTER') {
-                        runner.speed += (16 - runner.speed) * 0.15;
+                        runner.speed += (17 - runner.speed) * 0.15;
                         runner.statusTimer--;
                         if(runner.statusTimer <= 0) runner.status = 'NORMAL';
                     } else if (runner.status === 'STUN') {
@@ -599,16 +720,17 @@
                         runner.statusTimer--;
                         if(runner.statusTimer <= 0) runner.status = 'NORMAL';
                     } else {
-                        runner.speed += (runner.targetSpeed - runner.speed) * 0.05;
-                        let catchUpBuff = (finishX - runner.x) / finishX * 5.5; 
+                        runner.speed += (runner.targetSpeed + catchUpBuff - runner.speed) * 0.05;
+                        let progressBonus = (finishX - runner.x) / finishX * 4.5; 
                         if (Math.random() < 0.05) {
-                            runner.targetSpeed = (Math.random() * 8 + 3.2) + catchUpBuff; 
+                            runner.targetSpeed = (Math.random() * 7 + 3.2) + progressBonus; 
                         }
                     }
 
                     runner.x += runner.speed;
                     runner.pulse += (runner.status === 'BOOSTER') ? 0.9 : 0.3;
 
+                    // 파티클 시스템
                     if (Math.random() < 0.4) {
                         runner.particles.push({
                             x: runner.x - 12,
@@ -619,13 +741,37 @@
                         });
                     }
 
+                    // [신기능 4] 바나나 함정 충돌 검사
+                    bananas.forEach(b => {
+                        if (b.active && Math.abs(runner.x - b.x) < 22 && Math.abs(runner.y - b.y) < 15) {
+                            b.active = false;
+                            runner.status = 'STUN';
+                            runner.statusTimer = 40; // 미끄러짐 스턴
+                            playBananaSound(); 
+                        }
+                    });
+
+                    // 아이템 상자 충돌 검사
                     items.forEach(box => {
                         if (box.active && Math.abs(runner.x - box.x) < 24 && Math.abs(runner.y - box.y) < 12) {
                             box.active = false;
                             if (Math.random() < 0.55) {
-                                runner.status = 'BOOSTER'; runner.statusTimer = 45; 
+                                runner.status = 'BOOSTER'; 
+                                runner.statusTimer = 45; 
+                                playBoosterSound(); 
+
+                                // [신기능 4] 부스터 획득 시 30% 확률로 뒤에 바나나 함정 드랍!
+                                if (Math.random() < 0.30) {
+                                    bananas.push({
+                                        x: runner.x - 30,
+                                        y: runner.y,
+                                        active: true
+                                    });
+                                }
                             } else {
-                                runner.status = 'STUN'; runner.statusTimer = 35; 
+                                runner.status = 'STUN'; 
+                                runner.statusTimer = 35; 
+                                playStunSound(); 
                             }
                         }
                     });
@@ -643,26 +789,28 @@
                 }
 
                 if (!runner.finished) {
-                    if (runner.x > leadX) leadX = runner.x;
-                    if (runner.x < lastX) {
-                        lastX = runner.x;
-                        lastRunner = runner;
-                    }
+                    if (runner.x < lastX) { lastX = runner.x; lastRunner = runner; }
+                }
+
+                // [신기능 3] 실시간 상단 미니 전광판 위치 업데이트
+                const dot = document.getElementById(`miniDot_${runner.id}`);
+                if (dot) {
+                    const pct = Math.min(94, (runner.x / finishX) * 94); // 오른쪽 패딩 마진 확보
+                    dot.style.left = `${pct}%`;
                 }
             });
 
             let focusX = leadX;
             if (unfinishedCount === 1 && lastRunner) {
                 focusX = lastRunner.x;
-                document.getElementById('camStatus').innerText = `⚠️ 카메라 모드: 꼴찌 [ ${lastRunner.name} ] 집요하게 추격 중!`;
             }
 
             if (focusX > 400) {
                 let targetCamX = Math.min(focusX - 400, finishX - canvas.width + 120);
-                cameraX += (targetCamX - cameraX) * 0.08; 
+                camX += (targetCamX - camX) * 0.08; 
             }
 
-            drawStadium();
+            drawClassicStadium();
 
             if (!allFinished) {
                 animationFrameId = requestAnimationFrame(updateRace);
@@ -672,22 +820,20 @@
             }
         }
 
-        function drawStadium() {
+        function drawClassicStadium() {
             ctx.fillStyle = '#1a2436';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-            runners.forEach((runner, i) => {
+            runners.forEach((_, i) => {
                 ctx.fillStyle = (i % 2 === 0) ? '#a24836' : '#b3533f'; 
                 ctx.fillRect(0, i * laneHeight, canvas.width, laneHeight);
-
                 if (i > 0) {
                     ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
                     ctx.beginPath(); ctx.moveTo(0, i * laneHeight); ctx.lineTo(canvas.width, i * laneHeight); ctx.stroke();
                 }
             });
 
-            ctx.save();
-            ctx.translate(-cameraX, 0); 
+            ctx.save(); ctx.translate(-camX, 0); 
 
             runners.forEach((_, i) => {
                 ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; ctx.lineWidth = 1.5;
@@ -698,9 +844,7 @@
 
             ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6;
             ctx.beginPath(); ctx.moveTo(startX, 0); ctx.lineTo(startX, canvas.height); ctx.stroke();
-            
-            ctx.fillStyle = '#333';
-            ctx.fillRect(startX - 25, 0, 20, canvas.height);
+            ctx.fillStyle = '#333'; ctx.fillRect(startX - 25, 0, 20, canvas.height);
 
             const cw = 15; 
             for (let y = 0; y < canvas.height; y += cw) {
@@ -710,64 +854,82 @@
                 }
             }
 
+            // [신기능 4] 바나나 함정 렌더링 (노란색 초승달 모양 함정)
+            bananas.forEach(b => {
+                if (b.active) {
+                    ctx.save();
+                    ctx.translate(b.x, b.y);
+                    ctx.shadowColor = '#ffff33'; ctx.shadowBlur = 8;
+                    ctx.fillStyle = '#ffea00';
+                    ctx.beginPath();
+                    // 이쁜 바나나 껍질 곡선 그리기
+                    ctx.arc(0, 0, 8, 0, Math.PI, false);
+                    ctx.closePath();
+                    ctx.fill();
+                    // 껍질 디테일 선
+                    ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2;
+                    ctx.stroke();
+                    ctx.restore();
+                    ctx.shadowBlur = 0;
+                }
+            });
+
+            // 아이템 상자 렌더링
             items.forEach(box => {
                 if (box.active) {
                     box.pulse += 0.06;
                     const sizeBounce = 18 + Math.sin(box.pulse) * 3;
-                    ctx.save();
-                    ctx.translate(box.x, box.y); ctx.rotate(box.pulse * 0.4);
+                    ctx.save(); ctx.translate(box.x, box.y); ctx.rotate(box.pulse * 0.4);
                     ctx.shadowColor = '#ffd166'; ctx.shadowBlur = 12;
                     ctx.fillStyle = 'rgba(255, 209, 102, 0.3)'; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2.5;
                     ctx.fillRect(-sizeBounce/2, -sizeBounce/2, sizeBounce, sizeBounce);
                     ctx.strokeRect(-sizeBounce/2, -sizeBounce/2, sizeBounce, sizeBounce);
-                    
-                    // 캔버스 내부 텍스트 폰트 적용
                     ctx.fillStyle = '#fff'; ctx.font = 'bold 13px "Paperozi", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    ctx.fillText('?', 0, 0);
-                    ctx.restore(); ctx.shadowBlur = 0;
+                    ctx.fillText('?', 0, 0); ctx.restore(); ctx.shadowBlur = 0;
                 }
             });
 
+            // 주자 캐릭터 렌더링
             runners.forEach(runner => {
                 runner.particles.forEach((p, idx) => {
                     ctx.fillStyle = p.color; ctx.globalAlpha = p.alpha;
                     ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
-                    p.x -= 2; p.alpha -= 0.025;
+                    p.alpha -= 0.025;
                     if (p.alpha <= 0) runner.particles.splice(idx, 1);
                 });
                 ctx.globalAlpha = 1.0;
 
                 const bobbing = Math.sin(runner.pulse) * 3.5;
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-                ctx.beginPath(); ctx.arc(runner.x, runner.y + 16, 14, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+                ctx.beginPath(); ctx.arc(runner.x, runner.y + 12, 11, 0, Math.PI * 2); ctx.fill();
 
                 if (runner.status === 'BOOSTER') {
                     ctx.shadowColor = '#ffd166'; ctx.shadowBlur = 20; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 4;
-                    ctx.beginPath(); ctx.arc(runner.x, runner.y + bobbing, 23, 0, Math.PI * 2); ctx.stroke();
+                    ctx.beginPath(); ctx.arc(runner.x, runner.y + bobbing, 20, 0, Math.PI * 2); ctx.stroke();
                 } else if (runner.status === 'STUN') {
                     ctx.shadowColor = '#05d9e8'; ctx.shadowBlur = 15; ctx.strokeStyle = '#05d9e8'; ctx.lineWidth = 3;
                     ctx.setLineDash([4, 4]);
-                    ctx.beginPath(); ctx.arc(runner.x, runner.y + bobbing, 21, 0, Math.PI * 2); ctx.stroke();
+                    ctx.beginPath(); ctx.arc(runner.x, runner.y + bobbing, 18, 0, Math.PI * 2); ctx.stroke();
                     ctx.setLineDash([]);
                 }
 
-                let grad = ctx.createRadialGradient(runner.x - 4, runner.y + bobbing - 4, 2, runner.x, runner.y + bobbing, 18);
+                let grad = ctx.createRadialGradient(runner.x - 3, runner.y + bobbing - 3, 2, runner.x, runner.y + bobbing, 15);
                 grad.addColorStop(0, runner.colorSub); grad.addColorStop(1, runner.color);
                 ctx.fillStyle = grad;
-                ctx.beginPath(); ctx.arc(runner.x, runner.y + bobbing, 17, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(runner.x, runner.y + bobbing, 15, 0, Math.PI * 2); ctx.fill();
                 ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.stroke();
                 ctx.shadowBlur = 0;
 
-                // 레이서 이름에 폰트 연동 (가독성을 위해 800 두께 반영)
-                ctx.fillStyle = '#ffffff'; ctx.font = '800 13px "Paperozi", sans-serif'; ctx.textAlign = 'center';
+                ctx.fillStyle = '#ffffff'; ctx.font = '800 14px "Paperozi", sans-serif'; ctx.textAlign = 'center';
                 ctx.shadowColor = '#000000'; ctx.shadowBlur = 6;
-                ctx.fillText(runner.name, runner.x, runner.y + bobbing - 25);
+                ctx.fillText(runner.name, runner.x, runner.y + bobbing - 22);
                 ctx.shadowBlur = 0;
             });
 
             ctx.restore(); 
         }
 
+        // --- [결과창 폭죽 이펙트] ---
         function initConfetti() {
             confettiParticles = [];
             const colors = ['#ffd700', '#ff007f', '#00f5d4', '#00bbf9', '#ffffff'];
@@ -788,25 +950,14 @@
 
         function updateConfetti() {
             cCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
-            
             confettiParticles.forEach(p => {
-                p.y += p.speedY;
-                p.x += p.speedX;
-                p.rotation += p.rotationSpeed;
-
-                cCtx.save();
-                cCtx.translate(p.x, p.y);
-                cCtx.rotate(p.rotation * Math.PI / 180);
-                cCtx.fillStyle = p.color;
-                cCtx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
-                cCtx.restore();
-
+                p.y += p.speedY; p.x += p.speedX; p.rotation += p.rotationSpeed;
+                cCtx.save(); cCtx.translate(p.x, p.y); cCtx.rotate(p.rotation * Math.PI / 180);
+                cCtx.fillStyle = p.color; cCtx.fillRect(-p.size/2, -p.size/2, p.size, p.size); cCtx.restore();
                 if (p.y > confettiCanvas.height) {
-                    p.y = -10;
-                    p.x = Math.random() * confettiCanvas.width;
+                    p.y = -10; p.x = Math.random() * confettiCanvas.width;
                 }
             });
-
             confettiFrameId = requestAnimationFrame(updateConfetti);
         }
     </script>
