@@ -1,405 +1,814 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<title>KST 레이스 룰렛</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KST RACE</title>
+    <style>
+        /* -------------------------------------
+           [0] 외부 웹 폰트 정의 (Paperlogy)
+        ------------------------------------- */
+        /* 제목용 ExtraBold (800) */
+        @font-face {
+            font-family: 'Paperozi';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-8ExtraBold.woff2') format('woff2');
+            font-weight: 800;
+            font-display: swap;
+        }
+        /* 일반 본문용 Regular (400) */
+        @font-face {
+            font-family: 'Paperozi';
+            src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/2408-3@1.0/Paperlogy-4Regular.woff2') format('woff2');
+            font-weight: 400;
+            font-display: swap;
+        }
 
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+        body {
+            background-color: #0b0f19;
+            color: #a5b1c2;
+            font-family: 'Paperozi', 'Segoe UI', sans-serif;
+            font-weight: 400; /* 기본은 Regular */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            overflow-x: hidden;
+        }
 
-<style>
-body{margin:0;background:#111827;color:white;text-align:center;font-family:sans-serif}
-button{padding:10px 20px;margin:5px;border:none;border-radius:10px;background:#ff5722;color:white}
+        /* -------------------------------------
+           [1] 대기 화면
+        ------------------------------------- */
+        #readyScreen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 550px;
+            padding: 40px 30px;
+            background: linear-gradient(145deg, #121824, #080b11);
+            border-radius: 24px;
+            box-shadow: 0 0 40px rgba(235, 94, 40, 0.25);
+            border: 2px solid #eb5e28;
+            text-align: center;
+            box-sizing: border-box;
+        }
 
-.lane{
-position:relative;
-height:90px;
-margin:10px;
-border-radius:12px;
-background:linear-gradient(to bottom,#6b7280 0%,#6b7280 45%,#fff 45%,#fff 55%,#6b7280 55%);
-}
+        #readyScreen h1 {
+            font-family: 'Paperozi', sans-serif;
+            font-weight: 800; /* 제목용 */
+            color: #fff;
+            font-size: 2.7rem;
+            margin: 0 0 8px 0;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 15px #eb5e28;
+        }
 
-.kart{
-position:absolute;
-left:0;
-top:50%;
-transform:translateY(-50%);
-display:flex;
-gap:8px;
-align-items:center;
-}
+        #readyScreen .desc {
+            color: #ccc;
+            font-size: 0.95rem;
+            margin-bottom: 30px;
+            font-weight: 400;
+        }
 
-.face{width:38px;height:38px;border-radius:50%;border:2px solid white}
-.nameTag{background:black;padding:5px 10px;border-radius:8px}
+        textarea {
+            font-family: 'Paperozi', sans-serif;
+            font-weight: 400;
+            width: 100%;
+            height: 100px;
+            padding: 15px;
+            border-radius: 12px;
+            border: 2px solid #25334a;
+            background-color: #0b0f19;
+            color: #eb5e28;
+            font-size: 16px;
+            resize: none;
+            box-sizing: border-box;
+            outline: none;
+            margin-bottom: 30px;
+            transition: 0.3s;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        }
 
-#finishLine{
-position:fixed;
-right:120px;
-width:60px;height:100%;
-background:repeating-linear-gradient(45deg,white 0,white 15px,black 15px,black 30px)
-}
+        textarea:focus {
+            border-color: #ffd166;
+            box-shadow: 0 0 15px rgba(255, 209, 102, 0.4), inset 0 0 5px rgba(0,0,0,0.8);
+            color: #ffd166;
+        }
 
-#count{
-position:fixed;
-top:50%;left:50%;
-transform:translate(-50%,-50%);
-font-size:120px
-}
+        .action-btn {
+            font-family: 'Paperozi', sans-serif;
+            font-weight: 800; /* 강조 */
+            padding: 16px 70px;
+            font-size: 20px;
+            color: #fff;
+            background: linear-gradient(135deg, #eb5e28, #ffd166);
+            border: none;
+            border-radius: 40px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(235, 94, 40, 0.4);
+            transition: 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
 
-#result{
-position:fixed;
-top:50%;left:50%;
-transform:translate(-50%,-50%) scale(0);
-background:white;color:black;
-padding:30px;border-radius:20px
-}
-#result.show{transform:translate(-50%,-50%) scale(1)}
+        .action-btn:hover {
+            transform: translateY(-4px) scale(1.03);
+            box-shadow: 0 0 35px rgba(235, 94, 40, 0.8);
+        }
 
-#podium{display:flex;justify-content:center;align-items:flex-end;gap:20px}
-.podiumBox{width:130px;display:flex;flex-direction:column;align-items:center}
-.first{height:200px;background:gold}
-.second{height:150px;background:silver}
-.third{height:120px;background:#cd7f32}
+        /* -------------------------------------
+           [2] 게임 화면 및 트랙
+        ------------------------------------- */
+        #gameScreen {
+            display: none;
+            width: 100%;
+            max-width: 1100px;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
 
-.rankList{margin-top:10px;text-align:left}
-</style>
+        .live-header {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 15px;
+            padding: 0 10px;
+            box-sizing: border-box;
+        }
+
+        .live-badge {
+            font-family: 'Paperozi', sans-serif;
+            font-weight: 800;
+            background-color: #d90429;
+            color: #fff;
+            padding: 6px 18px;
+            border-radius: 20px;
+            font-size: 13px;
+            letter-spacing: 1px;
+            box-shadow: 0 0 15px #d90429;
+            animation: blink 0.8s infinite alternate;
+        }
+
+        .track-info {
+            font-family: 'Paperozi', sans-serif;
+            font-weight: 800;
+            color: #ffd166;
+            font-size: 14px;
+            text-shadow: 0 0 8px rgba(255,209,102,0.5);
+            align-self: center;
+        }
+
+        @keyframes blink { from { opacity: 0.4; } to { opacity: 1; } }
+
+        .stadium-box {
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 30px 70px rgba(0,0,0,0.8);
+            border: 4px solid #25334a;
+            background-color: #2b2d42;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+        }
+
+        #winnerPopup {
+            font-family: 'Paperozi', sans-serif;
+            font-weight: 800;
+            position: fixed;
+            bottom: -150px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: linear-gradient(135deg, #ffd700, #ff9f43);
+            color: #000;
+            padding: 20px 50px;
+            border-radius: 50px;
+            font-size: 24px;
+            box-shadow: 0 15px 40px rgba(255, 215, 0, 0.5);
+            border: 3px solid #fff;
+            z-index: 100;
+            transition: bottom 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        #winnerPopup.show {
+            bottom: 40px;
+        }
+
+        /* -------------------------------------
+           [3] 결과 화면 & 3D 입체 시상대 디자인
+        ------------------------------------- */
+        #resultScreen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 650px;
+            padding: 40px;
+            background: linear-gradient(145deg, #101524, #070914);
+            border-radius: 32px;
+            box-shadow: 0 0 60px rgba(255, 215, 0, 0.2);
+            border: 2px solid rgba(255, 215, 0, 0.3);
+            text-align: center;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        #resultScreen h2 {
+            font-family: 'Paperozi', sans-serif;
+            font-weight: 800;
+            color: #ffd700;
+            font-size: 2.6rem;
+            margin: 0 0 10px 0;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+            letter-spacing: 3px;
+        }
+
+        /* 시상대 메인 컨테이너 */
+        .podium-container {
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            width: 100%;
+            height: 280px;
+            margin: 30px 0 20px 0;
+            padding-bottom: 10px;
+            border-bottom: 4px solid #2d3748;
+        }
+
+        /* 시상대 각각의 기둥 베이스 */
+        .podium-column {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
+            margin: 0 12px;
+            width: 130px;
+            position: relative;
+            transform: scaleY(0); 
+            transform-origin: bottom;
+            box-sizing: border-box;
+        }
+
+        /* 기둥 솟아오르는 애니메이션 정의 */
+        @keyframes riseUp {
+            0% { transform: scaleY(0); }
+            70% { transform: scaleY(1.08); }
+            100% { transform: scaleY(1); }
+        }
+
+        .podium-column.animate {
+            animation: riseUp 0.8s cubic-bezier(0.175, 0.885, 0.32, 1.2) forwards;
+        }
+
+        /* 상단 텍스트 및 메달 디자인 */
+        .podium-user {
+            font-family: 'Paperozi', sans-serif;
+            font-weight: 800;
+            font-size: 16px;
+            color: #fff;
+            margin-bottom: 12px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+            text-align: center;
+            width: 100%;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            opacity: 0;
+            transition: opacity 0.3s ease 0.6s;
+        }
+        .podium-column.animate .podium-user {
+            opacity: 1;
+        }
+
+        .podium-medal {
+            font-size: 2rem;
+            margin-bottom: -5px;
+            z-index: 2;
+        }
+
+        /* 3D 기둥 박스 그래픽 입히기 */
+        .podium-box-graphic {
+            font-family: 'Paperozi', sans-serif;
+            font-weight: 800;
+            width: 100%;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            color: rgba(255,255,255,0.8);
+            box-shadow: inset 0 4px 10px rgba(255,255,255,0.2), 0 10px 25px rgba(0,0,0,0.5);
+            text-shadow: 0 2px 5px rgba(0,0,0,0.4);
+        }
+
+        /* 1등, 2등, 3등 높이 및 골드/실버/브론즈 메탈 스킨 구현 */
+        .p-1 { 
+            height: 150px; 
+            background: linear-gradient(135deg, #ffd700, #b38600); 
+            border: 2px solid #ffd700;
+        }
+        .p-2 { 
+            height: 110px; 
+            background: linear-gradient(135deg, #e2e8f0, #718096); 
+            border: 2px solid #cbd5e1;
+        }
+        .p-3 { 
+            height: 80px; 
+            background: linear-gradient(135deg, #cd7f32, #704214); 
+            border: 2px solid #cd7f32;
+        }
+
+        /* 전체 스크롤 리더보드 리스트 */
+        .leaderboard {
+            font-family: 'Paperozi', sans-serif;
+            font-weight: 400;
+            width: 100%;
+            text-align: left;
+            margin: 15px auto 30px auto;
+            font-size: 16px;
+            line-height: 2.2;
+            border-top: 1px solid rgba(255,255,255,0.08);
+            padding-top: 15px;
+            max-height: 160px;
+            overflow-y: auto;
+        }
+
+        .rank-item {
+            display: flex;
+            justify-content: space-between;
+            color: #a5b1c2;
+            padding: 2px 12px;
+            border-radius: 6px;
+        }
+        .rank-item:nth-child(even) { background: rgba(255,255,255,0.02); }
+        .rank-item.last { 
+            color: #ef233c; 
+            font-weight: 800; 
+            background: rgba(239, 35, 60, 0.08); 
+        }
+
+        .retry-btn {
+            font-family: 'Paperozi', sans-serif;
+            font-weight: 800;
+            background: transparent;
+            color: #ffd700;
+            border: 2px solid #ffd700;
+            padding: 12px 60px;
+            font-size: 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .retry-btn:hover {
+            background: #ffd700;
+            color: #05070f;
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.6);
+        }
+
+        /* 폭죽 캔버스 조율 */
+        #confettiCanvas {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            border-radius: 32px;
+            z-index: 5;
+        }
+    </style>
 </head>
+<body>
 
-<body onclick="startAudioOnce()">
+    <div id="readyScreen">
+        <h1>KST RACE</h1>
+        <div class="desc">새로워진 KST 레이스를 만나보세요!</div>
+        <textarea id="nameInput">한이, 바가, 라면, 진상, 진지, 조교, 제갈태윤, 테무</textarea>
+        <button class="action-btn" onclick="goToGame()">시작 🏁</button>
+    </div>
 
-<audio id="bgm" loop>
-<source src="bgm.mp3" type="audio/mpeg">
-</audio>
+    <div id="gameScreen">
+        <div class="live-header">
+            <div class="live-badge">● LIVE TRACKING</div>
+            <div class="track-info" id="camStatus">카메라 모드: 선두 추격 중</div>
+        </div>
+        <div class="stadium-box">
+            <canvas id="raceCanvas" width="1000" height="450"></canvas>
+        </div>
+        <div id="winnerPopup">🥇 WINNER: Kaiser !!</div>
+    </div>
 
-<div id="menu">
-<h1 id="title">🏁 KST 레이스 룰렛</h1>
-<button onclick="openNormal()">일반 모드</button>
-<button onclick="startFixed()">고정 모드</button>
-<button onclick="runUltraFixed()">고정 100번 시뮬</button>
+    <div id="resultScreen">
+        <canvas id="confettiCanvas"></canvas>
 
-<div id="normal" style="display:none">
-<div id="players"></div>
-<button onclick="addPlayer()">플레이어 추가</button>
-<button onclick="startNormal()">시작</button>
-<button onclick="runUltraNormal()">일반 100번 시뮬</button>
-</div>
-</div>
+        <h2>KST RACE Result</h2>
+        
+        <div class="podium-container">
+            <div class="podium-column" id="podium2">
+                <div class="podium-user" id="p2Name">🥈 대기</div>
+                <div class="podium-medal">🥈</div>
+                <div class="podium-box-graphic p-2">2</div>
+            </div>
+            <div class="podium-column" id="podium1">
+                <div class="podium-user" id="p1Name" style="color:#ffd700; font-size:19px;">🥇 대기</div>
+                <div class="podium-medal">👑</div>
+                <div class="podium-box-graphic p-1">1</div>
+            </div>
+            <div class="podium-column" id="podium3">
+                <div class="podium-user" id="p3Name">🥉 대기</div>
+                <div class="podium-medal">🥉</div>
+                <div class="podium-box-graphic p-3">3</div>
+            </div>
+        </div>
 
-<div id="raceScreen" style="display:none">
-<div id="finishLine"></div>
-<div id="game"></div>
-<div id="count"></div>
-</div>
+        <div class="leaderboard" id="rankList"></div>
+        <button class="retry-btn" onclick="goToReady()">다시하기</button>
+    </div>
 
-<div id="result">
-<h2 id="resultTitle"></h2>
-<div id="resultList"></div>
-<button onclick="location.reload()">닫기</button>
-</div>
+    <script>
+        const canvas = document.getElementById('raceCanvas');
+        const ctx = canvas.getContext('2d');
+        const confettiCanvas = document.getElementById('confettiCanvas');
+        const cCtx = confettiCanvas.getContext('2d');
 
-<div id="admin" style="display:none">
-<h2>관리자 모드</h2>
-<div id="adminPlayers"></div>
-<button onclick="addAdmin()">추가</button>
-<button onclick="saveAdmin()">저장</button>
-<button onclick="closeAdmin()">닫기</button>
-</div>
+        const teamColors = [
+            { main: '#ff2a6d', sub: '#ff76b4' },
+            { main: '#05d9e8', sub: '#1dd1a1' },
+            { main: '#ffbc42', sub: '#feca57' },
+            { main: '#a124f5', sub: '#8e44ad' },
+            { main: '#00bbf9', sub: '#1dd1a1' },
+            { main: '#00f5d4', sub: '#2e5bff' }
+        ];
 
-<script>
+        let runners = [];
+        let items = [];
+        let rankRecords = [];
+        let confettiParticles = [];
+        let animationFrameId;
+        let confettiFrameId;
+        
+        const startX = 120;
+        const finishX = 4500; 
+        let laneHeight = 70;
+        let cameraX = 0;
+        let firstPlaceDeclared = false;
 
-/* DOM */
-const menu=document.getElementById("menu")
-const normal=document.getElementById("normal")
-const players=document.getElementById("players")
-const raceScreen=document.getElementById("raceScreen")
-const game=document.getElementById("game")
-const count=document.getElementById("count")
-const result=document.getElementById("result")
-const resultTitle=document.getElementById("resultTitle")
-const resultList=document.getElementById("resultList")
-const admin=document.getElementById("admin")
-const adminPlayers=document.getElementById("adminPlayers")
-const title=document.getElementById("title")
-const bgm=document.getElementById("bgm")
+        function goToGame() {
+            const names = document.getElementById('nameInput').value.split(',').map(n => n.trim()).filter(n => n !== '');
+            if (names.length === 0) return alert("주자 이름을 입력해 주세요!");
 
-/* Firebase */
-const firebaseConfig={
-apiKey:"YOUR_KEY",
-authDomain:"racerullet.firebaseapp.com",
-projectId:"racerullet",
-databaseURL:"https://racerullet-default-rtdb.firebaseio.com/"
-}
-firebase.initializeApp(firebaseConfig)
-const db=firebase.database()
+            document.getElementById('readyScreen').style.display = 'none';
+            document.getElementById('gameScreen').style.display = 'flex';
+            document.getElementById('winnerPopup').className = ''; 
 
-/* 오디오 */
-let audioStarted=false
-function startAudioOnce(){
-if(!audioStarted){
-bgm.play().catch(()=>{})
-audioStarted=true
-}
-}
+            document.getElementById('podium1').classList.remove('animate');
+            document.getElementById('podium2').classList.remove('animate');
+            document.getElementById('podium3').classList.remove('animate');
 
-/* 변수 */
-let playerNames=[],playerImages=[],finished=[]
-let clickCount=0
+            laneHeight = Math.max(65, Math.min(85, 450 / names.length));
+            canvas.height = names.length * laneHeight;
 
-/* 관리자 */
-title.onclick=()=>{
-clickCount++
-if(clickCount>=5){
-menu.style.display="none"
-admin.style.display="block"
-loadAdmin()
-}
-}
+            runners = names.map((name, i) => {
+                return {
+                    name: name,
+                    x: startX,
+                    y: (i * laneHeight) + (laneHeight / 2),
+                    speed: 0,
+                    targetSpeed: Math.random() * 3 + 3,
+                    color: teamColors[i % teamColors.length].main,
+                    colorSub: teamColors[i % teamColors.length].sub,
+                    finished: false,
+                    pulse: Math.random() * 10,
+                    particles: [],
+                    status: 'NORMAL',
+                    statusTimer: 0
+                };
+            });
 
-function loadAdmin(){
-db.ref("racePlayers").once("value").then(s=>{
-adminPlayers.innerHTML=""
-Object.values(s.val()||{}).forEach(p=>{
-createAdminRow(p.name,p.img)
-})
-})
-}
+            items = [];
+            const boxColumns = 8; 
+            for (let i = 0; i < runners.length; i++) {
+                const laneY = (i * laneHeight) + (laneHeight / 2);
+                for (let j = 0; j < boxColumns; j++) {
+                    const boxX = 450 + (j * 520) + (Math.random() * 120);
+                    items.push({ x: boxX, y: laneY, active: true, pulse: Math.random() * Math.PI });
+                }
+            }
 
-function createAdminRow(name="",img=""){
-let row=document.createElement("div")
-row.innerHTML=`<input class="name" value="${name}">
-<input type="file">
-<img src="${img}" width="40">
-<button onclick="this.parentElement.remove()">삭제</button>`
-let file=row.querySelector("input[type=file]")
-let image=row.querySelector("img")
-file.onchange=e=>{
-let r=new FileReader()
-r.onload=a=>image.src=a.target.result
-r.readAsDataURL(e.target.files[0])
-}
-adminPlayers.appendChild(row)
-}
+            rankRecords = [];
+            cameraX = 0; 
+            firstPlaceDeclared = false;
+            document.getElementById('camStatus').innerText = "카메라 모드: 선두 추격 중";
+            
+            animationFrameId = requestAnimationFrame(updateRace);
+        }
 
-function addAdmin(){createAdminRow()}
+        function showWinnerPopup(name) {
+            const popup = document.getElementById('winnerPopup');
+            popup.innerText = `🥇 1위 ${name} !!`;
+            popup.className = 'show';
+            setTimeout(() => { popup.className = ''; }, 3500);
+        }
 
-function saveAdmin(){
-let data={}
-document.querySelectorAll("#adminPlayers div").forEach((r,i)=>{
-let name=r.querySelector(".name").value
-let img=r.querySelector("img").src
-if(name) data["p"+i]={name,img}
-})
-db.ref("racePlayers").set(data)
-alert("저장 완료")
-}
+        function triggerPodiumShow() {
+            confettiCanvas.width = document.getElementById('resultScreen').clientWidth;
+            confettiCanvas.height = document.getElementById('resultScreen').clientHeight;
 
-function closeAdmin(){
-admin.style.display="none"
-menu.style.display="block"
-}
+            const p1 = rankRecords[0] || "없음";
+            const p2 = rankRecords[1] || "없음";
+            const p3 = rankRecords[2] || "없음";
 
-/* 일반 */
-function openNormal(){normal.style.display="block"}
+            document.getElementById('p1Name').innerText = p1;
+            document.getElementById('p2Name').innerText = p2;
+            document.getElementById('p3Name').innerText = p3;
 
-function addPlayer(){
-let d=document.createElement("div")
-d.innerHTML=`<input class="name">
-<input type="file">
-<img width="40">
-<button onclick="this.parentElement.remove()">삭제</button>`
-let file=d.querySelector("input[type=file]")
-let img=d.querySelector("img")
-file.onchange=e=>{
-let r=new FileReader()
-r.onload=a=>img.src=a.target.result
-r.readAsDataURL(e.target.files[0])
-}
-players.appendChild(d)
-}
+            setTimeout(() => {
+                document.getElementById('podium3').classList.add('animate');
+            }, 400);
 
-function startNormal(){
-playerNames=[];playerImages=[];finished=[]
-document.querySelectorAll("#players div").forEach(p=>{
-playerNames.push(p.querySelector(".name").value||"Player")
-playerImages.push(p.querySelector("img").src)
-})
-startRace()
-}
+            setTimeout(() => {
+                document.getElementById('podium2').classList.add('animate');
+            }, 1100);
 
-/* 고정 */
-function startFixed(){
-db.ref("racePlayers").once("value").then(s=>{
-playerNames=[];playerImages=[];finished=[]
-Object.values(s.val()||{}).forEach(p=>{
-playerNames.push(p.name)
-playerImages.push(p.img)
-})
-startRace()
-})
-}
+            setTimeout(() => {
+                document.getElementById('podium1').classList.add('animate');
+                initConfetti(); 
+            }, 1900);
+        }
 
-/* 레이스 */
-function startRace(){
-menu.style.display="none"
-raceScreen.style.display="block"
-game.innerHTML=""
+        function goToResult() {
+            document.getElementById('gameScreen').style.display = 'none';
+            document.getElementById('resultScreen').style.display = 'flex';
+            
+            const rankList = document.getElementById('rankList');
+            rankList.innerHTML = '';
+            
+            rankRecords.forEach((name, index) => {
+                const item = document.createElement('div');
+                let rankClass = 'rank-item';
+                let medal = `${index + 1}등`;
+                
+                if(index === 0) { medal = '🥇 1위'; }
+                else if(index === 1) { medal = '🥈 2위'; }
+                else if(index === 2) { medal = '🥉 3위'; }
+                else if(index === rankRecords.length - 1) { rankClass += ' last'; medal = '💀 꼴찌'; }
+                
+                item.className = rankClass;
+                item.innerHTML = `<span>${medal}</span> <span style="font-weight:bold;">${name}</span>`;
+                rankList.appendChild(item);
+            });
 
-bgm.currentTime=0
-bgm.play().catch(()=>{})
+            triggerPodiumShow();
+        }
 
-playerNames.forEach((p,i)=>{
-let lane=document.createElement("div")
-lane.className="lane"
-let kart=document.createElement("div")
-kart.className="kart"
-kart.innerHTML=`<img class="face" src="${playerImages[i]}"><div class="nameTag">${p}</div>`
-lane.appendChild(kart)
-game.appendChild(lane)
-})
+        function goToReady() {
+            cancelAnimationFrame(confettiFrameId);
+            confettiParticles = [];
+            document.getElementById('resultScreen').style.display = 'none';
+            document.getElementById('readyScreen').style.display = 'flex';
+        }
 
-countdown()
-}
+        function updateRace() {
+            let allFinished = true;
+            let leadX = 0;
+            let unfinishedCount = 0;
+            let lastX = Infinity; 
+            let lastRunner = null;
 
-function countdown(){
-let c=3
-count.innerText=c
-let t=setInterval(()=>{
-c--
-if(c>0) count.innerText=c
-else if(c==0) count.innerText="GO!"
-else{count.innerText="";clearInterval(t);runRace()}
-},1000)
-}
+            runners.forEach(runner => {
+                if (!runner.finished) {
+                    allFinished = false;
+                    unfinishedCount++;
 
-function runRace(){
-let karts=[...document.querySelectorAll(".kart")]
-let pos=new Array(playerNames.length).fill(0)
-let finishX=window.innerWidth-200
+                    if (runner.status === 'BOOSTER') {
+                        runner.speed += (16 - runner.speed) * 0.15;
+                        runner.statusTimer--;
+                        if(runner.statusTimer <= 0) runner.status = 'NORMAL';
+                    } else if (runner.status === 'STUN') {
+                        runner.speed += (0.1 - runner.speed) * 0.2;
+                        runner.statusTimer--;
+                        if(runner.statusTimer <= 0) runner.status = 'NORMAL';
+                    } else {
+                        runner.speed += (runner.targetSpeed - runner.speed) * 0.05;
+                        let catchUpBuff = (finishX - runner.x) / finishX * 5.5; 
+                        if (Math.random() < 0.05) {
+                            runner.targetSpeed = (Math.random() * 8 + 3.2) + catchUpBuff; 
+                        }
+                    }
 
-let interval=setInterval(()=>{
-let order=playerNames.map((p,i)=>({i,pos:pos[i]}))
-order.sort((a,b)=>a.pos-b.pos)
-let last=order[0].i
+                    runner.x += runner.speed;
+                    runner.pulse += (runner.status === 'BOOSTER') ? 0.9 : 0.3;
 
-karts.forEach((k,i)=>{
-if(finished.includes(playerNames[i])) return
+                    if (Math.random() < 0.4) {
+                        runner.particles.push({
+                            x: runner.x - 12,
+                            y: runner.y + 6 + (Math.random() * 6 - 3),
+                            size: runner.status === 'BOOSTER' ? Math.random() * 5 + 3 : Math.random() * 3 + 1,
+                            alpha: 0.7,
+                            color: runner.status === 'BOOSTER' ? '#ffbc42' : (runner.status === 'STUN' ? '#05d9e8' : '#4e5d78')
+                        });
+                    }
 
-let speed=Math.random()*8
-if(i==last) speed+=3
+                    items.forEach(box => {
+                        if (box.active && Math.abs(runner.x - box.x) < 24 && Math.abs(runner.y - box.y) < 12) {
+                            box.active = false;
+                            if (Math.random() < 0.55) {
+                                runner.status = 'BOOSTER'; runner.statusTimer = 45; 
+                            } else {
+                                runner.status = 'STUN'; runner.statusTimer = 35; 
+                            }
+                        }
+                    });
 
-if(Math.random()<0.02){
-speed+=40
-k.querySelector(".nameTag").innerText=playerNames[i]+" 🔥"
-setTimeout(()=>k.querySelector(".nameTag").innerText=playerNames[i],800)
-}
+                    if (runner.x >= finishX) {
+                        runner.finished = true;
+                        runner.x = finishX;
+                        rankRecords.push(runner.name);
 
-pos[i]+=speed
-k.style.left=pos[i]+"px"
+                        if (!firstPlaceDeclared) {
+                            firstPlaceDeclared = true;
+                            showWinnerPopup(runner.name);
+                        }
+                    }
+                }
 
-if(pos[i]>=finishX&&!finished.includes(playerNames[i])){
-finished.push(playerNames[i])
-}
-})
+                if (!runner.finished) {
+                    if (runner.x > leadX) leadX = runner.x;
+                    if (runner.x < lastX) {
+                        lastX = runner.x;
+                        lastRunner = runner;
+                    }
+                }
+            });
 
-if(finished.length===playerNames.length){
-clearInterval(interval)
-setTimeout(showResult,1000)
-}
-},80)
-}
+            let focusX = leadX;
+            if (unfinishedCount === 1 && lastRunner) {
+                focusX = lastRunner.x;
+                document.getElementById('camStatus').innerText = `⚠️ 카메라 모드: 꼴찌 [ ${lastRunner.name} ] 집요하게 추격 중!`;
+            }
 
-/* 결과 */
-function showResult(){
-let html=`<div id="podium">
-<div class="podiumBox second">2등 ${finished[1]}</div>
-<div class="podiumBox first">1등 ${finished[0]}</div>
-<div class="podiumBox third">3등 ${finished[2]}</div>
-</div><div class="rankList">`
+            if (focusX > 400) {
+                let targetCamX = Math.min(focusX - 400, finishX - canvas.width + 120);
+                cameraX += (targetCamX - cameraX) * 0.08; 
+            }
 
-for(let i=3;i<finished.length;i++){
-html+=`${i+1}등 ${finished[i]}<br>`
-}
+            drawStadium();
 
-html+=`</div>`
+            if (!allFinished) {
+                animationFrameId = requestAnimationFrame(updateRace);
+            } else {
+                cancelAnimationFrame(animationFrameId);
+                setTimeout(goToResult, 1500); 
+            }
+        }
 
-resultTitle.innerText="🏆 결과"
-resultList.innerHTML=html
-result.classList.add("show")
-}
+        function drawStadium() {
+            ctx.fillStyle = '#1a2436';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-/* 시뮬 */
-function simulate(names){
-let win={}
-names.forEach(n=>win[n]=0)
+            runners.forEach((runner, i) => {
+                ctx.fillStyle = (i % 2 === 0) ? '#a24836' : '#b3533f'; 
+                ctx.fillRect(0, i * laneHeight, canvas.width, laneHeight);
 
-for(let r=0;r<100;r++){
-let pos=new Array(names.length).fill(0)
-let finished=[]
-while(finished.length<names.length){
-let order=names.map((n,i)=>({i,pos:pos[i]}))
-order.sort((a,b)=>a.pos-b.pos)
-let last=order[0].i
-for(let i=0;i<names.length;i++){
-if(finished.includes(names[i]))continue
-let speed=Math.random()*8
-if(i==last) speed+=3
-if(Math.random()<0.02) speed+=40
-pos[i]+=speed
-if(pos[i]>=1000&&!finished.includes(names[i])){
-finished.push(names[i])
-}
-}
-}
-win[finished[0]]++
-}
-return win
-}
+                if (i > 0) {
+                    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
+                    ctx.beginPath(); ctx.moveTo(0, i * laneHeight); ctx.lineTo(canvas.width, i * laneHeight); ctx.stroke();
+                }
+            });
 
-function runUltra(names){
-resultTitle.innerText="분석중..."
-resultList.innerHTML="⏳ 분석중..."
-result.classList.add("show")
+            ctx.save();
+            ctx.translate(-cameraX, 0); 
 
-setTimeout(()=>{
-let r=simulate(names)
-let arr=Object.entries(r).sort((a,b)=>b[1]-a[1])
+            runners.forEach((_, i) => {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; ctx.lineWidth = 1.5;
+                ctx.setLineDash([15, 15]);
+                ctx.beginPath(); ctx.moveTo(0, i * laneHeight + laneHeight/2); ctx.lineTo(finishX + 200, i * laneHeight + laneHeight/2); ctx.stroke();
+                ctx.setLineDash([]);
+            });
 
-let html=`<div id="podium">
-<div class="podiumBox second">${arr[1][0]}</div>
-<div class="podiumBox first">${arr[0][0]}</div>
-<div class="podiumBox third">${arr[2][0]}</div>
-</div><div class="rankList">`
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6;
+            ctx.beginPath(); ctx.moveTo(startX, 0); ctx.lineTo(startX, canvas.height); ctx.stroke();
+            
+            ctx.fillStyle = '#333';
+            ctx.fillRect(startX - 25, 0, 20, canvas.height);
 
-arr.forEach(([n,c],i)=>{
-html+=`${i+1}등 ${n} (${c}승)<br>`
-})
+            const cw = 15; 
+            for (let y = 0; y < canvas.height; y += cw) {
+                for (let x = 0; x < 2; x++) {
+                    ctx.fillStyle = ((Math.floor(y / cw) + x) % 2 === 0) ? '#ffffff' : '#000000';
+                    ctx.fillRect(finishX + (x * cw), y, cw, cw);
+                }
+            }
 
-html+=`</div>`
+            items.forEach(box => {
+                if (box.active) {
+                    box.pulse += 0.06;
+                    const sizeBounce = 18 + Math.sin(box.pulse) * 3;
+                    ctx.save();
+                    ctx.translate(box.x, box.y); ctx.rotate(box.pulse * 0.4);
+                    ctx.shadowColor = '#ffd166'; ctx.shadowBlur = 12;
+                    ctx.fillStyle = 'rgba(255, 209, 102, 0.3)'; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2.5;
+                    ctx.fillRect(-sizeBounce/2, -sizeBounce/2, sizeBounce, sizeBounce);
+                    ctx.strokeRect(-sizeBounce/2, -sizeBounce/2, sizeBounce, sizeBounce);
+                    
+                    // 캔버스 내부 텍스트 폰트 적용
+                    ctx.fillStyle = '#fff'; ctx.font = 'bold 13px "Paperozi", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+                    ctx.fillText('?', 0, 0);
+                    ctx.restore(); ctx.shadowBlur = 0;
+                }
+            });
 
-resultTitle.innerText="📊 분석 결과"
-resultList.innerHTML=html
+            runners.forEach(runner => {
+                runner.particles.forEach((p, idx) => {
+                    ctx.fillStyle = p.color; ctx.globalAlpha = p.alpha;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
+                    p.x -= 2; p.alpha -= 0.025;
+                    if (p.alpha <= 0) runner.particles.splice(idx, 1);
+                });
+                ctx.globalAlpha = 1.0;
 
-},500)
-}
+                const bobbing = Math.sin(runner.pulse) * 3.5;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                ctx.beginPath(); ctx.arc(runner.x, runner.y + 16, 14, 0, Math.PI * 2); ctx.fill();
 
-function runUltraNormal(){
-let names=[]
-document.querySelectorAll("#players div").forEach(p=>{
-names.push(p.querySelector(".name").value||"Player")
-})
-runUltra(names)
-}
+                if (runner.status === 'BOOSTER') {
+                    ctx.shadowColor = '#ffd166'; ctx.shadowBlur = 20; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 4;
+                    ctx.beginPath(); ctx.arc(runner.x, runner.y + bobbing, 23, 0, Math.PI * 2); ctx.stroke();
+                } else if (runner.status === 'STUN') {
+                    ctx.shadowColor = '#05d9e8'; ctx.shadowBlur = 15; ctx.strokeStyle = '#05d9e8'; ctx.lineWidth = 3;
+                    ctx.setLineDash([4, 4]);
+                    ctx.beginPath(); ctx.arc(runner.x, runner.y + bobbing, 21, 0, Math.PI * 2); ctx.stroke();
+                    ctx.setLineDash([]);
+                }
 
-function runUltraFixed(){
-db.ref("racePlayers").once("value").then(s=>{
-let names=[]
-Object.values(s.val()||{}).forEach(p=>names.push(p.name))
-runUltra(names)
-})
-}
+                let grad = ctx.createRadialGradient(runner.x - 4, runner.y + bobbing - 4, 2, runner.x, runner.y + bobbing, 18);
+                grad.addColorStop(0, runner.colorSub); grad.addColorStop(1, runner.color);
+                ctx.fillStyle = grad;
+                ctx.beginPath(); ctx.arc(runner.x, runner.y + bobbing, 17, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.stroke();
+                ctx.shadowBlur = 0;
 
-for(let i=0;i<4;i++) addPlayer()
+                // 레이서 이름에 폰트 연동 (가독성을 위해 800 두께 반영)
+                ctx.fillStyle = '#ffffff'; ctx.font = '800 13px "Paperozi", sans-serif'; ctx.textAlign = 'center';
+                ctx.shadowColor = '#000000'; ctx.shadowBlur = 6;
+                ctx.fillText(runner.name, runner.x, runner.y + bobbing - 25);
+                ctx.shadowBlur = 0;
+            });
 
-</script>
+            ctx.restore(); 
+        }
+
+        function initConfetti() {
+            confettiParticles = [];
+            const colors = ['#ffd700', '#ff007f', '#00f5d4', '#00bbf9', '#ffffff'];
+            for (let i = 0; i < 80; i++) {
+                confettiParticles.push({
+                    x: Math.random() * confettiCanvas.width,
+                    y: Math.random() * confettiCanvas.height - confettiCanvas.height,
+                    size: Math.random() * 6 + 4,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    speedY: Math.random() * 3 + 2,
+                    speedX: Math.random() * 2 - 1,
+                    rotation: Math.random() * 360,
+                    rotationSpeed: Math.random() * 4 - 2
+                });
+            }
+            updateConfetti();
+        }
+
+        function updateConfetti() {
+            cCtx.clearRect(0, 0, confettiCanvas.width, confettiCanvas.height);
+            
+            confettiParticles.forEach(p => {
+                p.y += p.speedY;
+                p.x += p.speedX;
+                p.rotation += p.rotationSpeed;
+
+                cCtx.save();
+                cCtx.translate(p.x, p.y);
+                cCtx.rotate(p.rotation * Math.PI / 180);
+                cCtx.fillStyle = p.color;
+                cCtx.fillRect(-p.size/2, -p.size/2, p.size, p.size);
+                cCtx.restore();
+
+                if (p.y > confettiCanvas.height) {
+                    p.y = -10;
+                    p.x = Math.random() * confettiCanvas.width;
+                }
+            });
+
+            confettiFrameId = requestAnimationFrame(updateConfetti);
+        }
+    </script>
 </body>
 </html>
