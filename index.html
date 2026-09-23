@@ -1004,7 +1004,7 @@
 
         function updateCamera(anyBoost) {
             const targetX = camX - 210;
-            camera.position.x += (targetX - camera.position.x) * 0.12;
+            camera.position.x += (targetX - camera.position.x) * 0.17;
 
             const targetY = 105 + (anyBoost ? 6 : 0);
             camera.position.y += (targetY - camera.position.y) * 0.08;
@@ -1306,8 +1306,8 @@
             }
 
             if (focusX > 400) {
-                let targetCamX = Math.min(focusX - 400, finishX - canvas.width + 120);
-                camX += (targetCamX - camX) * 0.08; 
+                let targetCamX = focusX - 400;
+                camX += (targetCamX - camX) * 0.13;
             }
 
             draw3DScene();
