@@ -480,9 +480,9 @@
         <button class="retry-btn" onclick="goToReady()">다시하기</button>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
     <script>
         const canvas = document.getElementById('raceCanvas');
-        const ctx = canvas.getContext('2d');
         const confettiCanvas = document.getElementById('confettiCanvas');
         const cCtx = confettiCanvas.getContext('2d');
         const miniMapContainer = document.getElementById('miniMapContainer');
@@ -570,17 +570,411 @@
 
         let runners = [];
         let items = [];
-        let bananas = []; 
+        let bananas = [];
         let rankRecords = [];
         let confettiParticles = [];
         let animationFrameId;
         let confettiFrameId;
-        
+
         let camX = 0;
         const startX = 120;
-        const finishX = 4500; 
+        const finishX = 4500;
         let laneHeight = 70;
         let firstPlaceDeclared = false;
+
+        // -------------------------------------
+        // [3D] Three.js 렌더링 엔진
+        // -------------------------------------
+        let renderer = null;
+        let scene = null;
+        let camera = null;
+        let totalWidth = 0;
+        let runnerObjects = [];
+        let itemObjects = [];
+
+        let particlePool = [];
+        let particleCursor = 0;
+        const PARTICLE_POOL_SIZE = 140;
+        let particleTexture = null;
+
+        function toWorldZ(y) {
+            return y - totalWidth / 2;
+        }
+
+        function roundRect(c, x, y, w, h, r) {
+            c.beginPath();
+            c.moveTo(x + r, y);
+            c.arcTo(x + w, y, x + w, y + h, r);
+            c.arcTo(x + w, y + h, x, y + h, r);
+            c.arcTo(x, y + h, x, y, r);
+            c.arcTo(x, y, x + w, y, r);
+            c.closePath();
+        }
+
+        function makeNameSprite(text, colorHex) {
+            const c = document.createElement('canvas');
+            c.width = 256; c.height = 96;
+            const cx = c.getContext('2d');
+            cx.fillStyle = 'rgba(8,11,18,0.8)';
+            roundRect(cx, 4, 4, 248, 88, 18); cx.fill();
+            cx.strokeStyle = colorHex; cx.lineWidth = 5;
+            roundRect(cx, 4, 4, 248, 88, 18); cx.stroke();
+            cx.fillStyle = '#ffffff';
+            cx.font = '800 42px "Paperozi", sans-serif';
+            cx.textAlign = 'center'; cx.textBaseline = 'middle';
+            cx.fillText(text, 128, 50);
+            const tex = new THREE.CanvasTexture(c);
+            const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+            const sprite = new THREE.Sprite(mat);
+            sprite.scale.set(58, 22, 1);
+            sprite.renderOrder = 999;
+            return sprite;
+        }
+
+        function makeBannerSprite(text) {
+            const c = document.createElement('canvas');
+            c.width = 512; c.height = 128;
+            const cx = c.getContext('2d');
+            cx.fillStyle = '#ffd700';
+            cx.font = '800 84px "Paperozi", sans-serif';
+            cx.textAlign = 'center'; cx.textBaseline = 'middle';
+            cx.shadowColor = 'rgba(255,215,0,0.9)'; cx.shadowBlur = 25;
+            cx.fillText(text, 256, 64);
+            const tex = new THREE.CanvasTexture(c);
+            const mat = new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false });
+            const sprite = new THREE.Sprite(mat);
+            sprite.scale.set(180, 45, 1);
+            return sprite;
+        }
+
+        function makeCheckerTexture() {
+            const c = document.createElement('canvas');
+            c.width = 32; c.height = 32;
+            const cx = c.getContext('2d');
+            cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, 32, 32);
+            cx.fillStyle = '#000000';
+            cx.fillRect(0, 0, 16, 16);
+            cx.fillRect(16, 16, 16, 16);
+            const tex = new THREE.CanvasTexture(c);
+            tex.magFilter = THREE.NearestFilter;
+            return tex;
+        }
+
+        function getParticleTexture() {
+            if (particleTexture) return particleTexture;
+            const c = document.createElement('canvas');
+            c.width = 64; c.height = 64;
+            const cx = c.getContext('2d');
+            const grad = cx.createRadialGradient(32, 32, 0, 32, 32, 32);
+            grad.addColorStop(0, 'rgba(255,255,255,1)');
+            grad.addColorStop(1, 'rgba(255,255,255,0)');
+            cx.fillStyle = grad;
+            cx.fillRect(0, 0, 64, 64);
+            particleTexture = new THREE.CanvasTexture(c);
+            return particleTexture;
+        }
+
+        function buildParticlePool() {
+            const tex = getParticleTexture();
+            particlePool.forEach(s => scene.remove(s));
+            particlePool = [];
+            for (let i = 0; i < PARTICLE_POOL_SIZE; i++) {
+                const mat = new THREE.SpriteMaterial({
+                    map: tex, color: 0xffffff, transparent: true, opacity: 0,
+                    depthWrite: false, blending: THREE.AdditiveBlending
+                });
+                const sprite = new THREE.Sprite(mat);
+                sprite.visible = false;
+                sprite.userData.life = 0;
+                scene.add(sprite);
+                particlePool.push(sprite);
+            }
+            particleCursor = 0;
+        }
+
+        function spawnParticle(x, y, z, colorHex, size) {
+            const sprite = particlePool[particleCursor];
+            particleCursor = (particleCursor + 1) % PARTICLE_POOL_SIZE;
+            sprite.position.set(x, y, z);
+            sprite.material.color.setHex(colorHex);
+            sprite.material.opacity = 0.85;
+            sprite.scale.set(size, size, 1);
+            sprite.visible = true;
+            sprite.userData.life = 1;
+        }
+
+        function updateParticles() {
+            particlePool.forEach(sprite => {
+                if (sprite.userData.life > 0) {
+                    sprite.userData.life -= 0.045;
+                    sprite.material.opacity = Math.max(0, sprite.userData.life * 0.85);
+                    sprite.position.y += 0.25;
+                    sprite.scale.multiplyScalar(0.985);
+                    if (sprite.userData.life <= 0) sprite.visible = false;
+                }
+            });
+        }
+
+        function buildScene(names) {
+            if (scene) {
+                scene.traverse(obj => {
+                    if (obj.geometry) obj.geometry.dispose();
+                    if (obj.material) {
+                        if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+                        else obj.material.dispose();
+                    }
+                });
+            }
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0b0f19);
+            scene.fog = new THREE.Fog(0x0b0f19, 900, 3400);
+
+            totalWidth = names.length * laneHeight;
+            const trackStartX = -150;
+            const trackEndX = finishX + 500;
+            const trackLength = trackEndX - trackStartX;
+
+            const ambient = new THREE.AmbientLight(0x8899bb, 0.75);
+            scene.add(ambient);
+            const sun = new THREE.DirectionalLight(0xffe8c2, 1.15);
+            sun.position.set(300, 500, 200);
+            scene.add(sun);
+            const rim = new THREE.DirectionalLight(0xeb5e28, 0.45);
+            rim.position.set(-300, 200, -200);
+            scene.add(rim);
+
+            for (let i = 0; i < names.length; i++) {
+                const laneCenterY = (i * laneHeight) + (laneHeight / 2);
+                const laneGeo = new THREE.PlaneGeometry(trackLength, laneHeight - 2);
+                const laneMat = new THREE.MeshStandardMaterial({
+                    color: (i % 2 === 0) ? 0xa24836 : 0xb3533f,
+                    roughness: 0.9, metalness: 0.05
+                });
+                const laneMesh = new THREE.Mesh(laneGeo, laneMat);
+                laneMesh.rotation.x = -Math.PI / 2;
+                laneMesh.position.set(trackStartX + trackLength / 2, 0, toWorldZ(laneCenterY));
+                scene.add(laneMesh);
+
+                if (i > 0) {
+                    const z = toWorldZ(i * laneHeight);
+                    const points = [new THREE.Vector3(trackStartX, 0.6, z), new THREE.Vector3(trackEndX, 0.6, z)];
+                    const geo = new THREE.BufferGeometry().setFromPoints(points);
+                    const mat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 18, gapSize: 16, transparent: true, opacity: 0.35 });
+                    const line = new THREE.Line(geo, mat);
+                    line.computeLineDistances();
+                    scene.add(line);
+                }
+            }
+
+            [-15, totalWidth + 15].forEach(zEdge => {
+                const wallGeo = new THREE.BoxGeometry(trackLength, 22, 6);
+                const wallMat = new THREE.MeshStandardMaterial({ color: 0x25334a, roughness: 0.6 });
+                const wall = new THREE.Mesh(wallGeo, wallMat);
+                wall.position.set(trackStartX + trackLength / 2, 11, toWorldZ(zEdge));
+                scene.add(wall);
+            });
+
+            const gateGeo = new THREE.BoxGeometry(10, 60, totalWidth + 10);
+            const gateMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5, metalness: 0.3 });
+            const gate = new THREE.Mesh(gateGeo, gateMat);
+            gate.position.set(startX - 12, 30, toWorldZ(totalWidth / 2));
+            scene.add(gate);
+
+            const startLineGeo = new THREE.PlaneGeometry(4, totalWidth);
+            const startLineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
+            const startLine = new THREE.Mesh(startLineGeo, startLineMat);
+            startLine.rotation.x = -Math.PI / 2;
+            startLine.position.set(startX, 0.4, toWorldZ(totalWidth / 2));
+            scene.add(startLine);
+
+            const checkerTex = makeCheckerTexture();
+            checkerTex.wrapS = checkerTex.wrapT = THREE.RepeatWrapping;
+            checkerTex.repeat.set(1, Math.max(1, Math.round(totalWidth / 24)));
+            const finishGeo = new THREE.PlaneGeometry(28, totalWidth);
+            const finishMat = new THREE.MeshBasicMaterial({ map: checkerTex });
+            const finishMesh = new THREE.Mesh(finishGeo, finishMat);
+            finishMesh.rotation.x = -Math.PI / 2;
+            finishMesh.position.set(finishX, 0.4, toWorldZ(totalWidth / 2));
+            scene.add(finishMesh);
+
+            [totalWidth / 2 + 30, -30].forEach(zEdge => {
+                const pillarGeo = new THREE.BoxGeometry(10, 160, 10);
+                const pillarMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0x553300, roughness: 0.4, metalness: 0.5 });
+                const pillar = new THREE.Mesh(pillarGeo, pillarMat);
+                pillar.position.set(finishX, 80, toWorldZ(zEdge));
+                scene.add(pillar);
+            });
+
+            const beamGeo = new THREE.BoxGeometry(10, 14, totalWidth + 70);
+            const beamMat = new THREE.MeshStandardMaterial({ color: 0xffd700, emissive: 0x553300, roughness: 0.4, metalness: 0.5 });
+            const beam = new THREE.Mesh(beamGeo, beamMat);
+            beam.position.set(finishX, 155, toWorldZ(totalWidth / 2));
+            scene.add(beam);
+
+            const finishSprite = makeBannerSprite('FINISH');
+            finishSprite.position.set(finishX, 190, toWorldZ(totalWidth / 2));
+            scene.add(finishSprite);
+
+            camera = new THREE.PerspectiveCamera(55, 1000 / canvas.height, 1, 5000);
+            camera.position.set(startX - 230, 130, toWorldZ(totalWidth / 2));
+            camera.lookAt(startX + 380, 20, toWorldZ(totalWidth / 2));
+
+            if (!renderer) {
+                renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+                renderer.outputEncoding = THREE.sRGBEncoding;
+                renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                renderer.toneMappingExposure = 1.05;
+            }
+            renderer.setSize(1000, canvas.height, false);
+
+            runnerObjects = [];
+            itemObjects = [];
+
+            buildParticlePool();
+        }
+
+        function buildRunnerMeshes() {
+            runners.forEach(runner => {
+                const group = new THREE.Group();
+
+                const bodyGeo = new THREE.SphereGeometry(15, 20, 20);
+                const bodyMat = new THREE.MeshStandardMaterial({
+                    color: runner.color,
+                    emissive: new THREE.Color(runner.color).multiplyScalar(0.35),
+                    emissiveIntensity: 0.5,
+                    roughness: 0.35, metalness: 0.3
+                });
+                const body = new THREE.Mesh(bodyGeo, bodyMat);
+                body.position.y = 15;
+                group.add(body);
+
+                const shadowGeo = new THREE.CircleGeometry(14, 20);
+                const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 });
+                const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
+                shadowMesh.rotation.x = -Math.PI / 2;
+                shadowMesh.position.y = 0.5;
+                group.add(shadowMesh);
+
+                const nameSprite = makeNameSprite(runner.name, runner.color);
+                nameSprite.position.y = 46;
+                group.add(nameSprite);
+
+                const ringGeo = new THREE.TorusGeometry(22, 2, 8, 24);
+                const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.9 });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2;
+                ring.position.y = 15;
+                ring.visible = false;
+                group.add(ring);
+
+                scene.add(group);
+                runnerObjects.push({ group, body, nameSprite, ring });
+            });
+        }
+
+        function buildItemMeshes() {
+            itemObjects = items.map(box => {
+                const geo = new THREE.BoxGeometry(20, 20, 20);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: 0xffd166, emissive: 0xeb8f00, emissiveIntensity: 0.6,
+                    roughness: 0.25, metalness: 0.2, transparent: true, opacity: 0.92
+                });
+                const mesh = new THREE.Mesh(geo, mat);
+                mesh.position.set(box.x, 20, toWorldZ(box.y));
+                scene.add(mesh);
+                return mesh;
+            });
+        }
+
+        function spawnBananaMesh(banana) {
+            const geo = new THREE.SphereGeometry(9, 10, 8);
+            geo.scale(1.5, 0.6, 1);
+            const mat = new THREE.MeshStandardMaterial({ color: 0xffea00, emissive: 0x998200, emissiveIntensity: 0.5, roughness: 0.4 });
+            const mesh = new THREE.Mesh(geo, mat);
+            mesh.position.set(banana.x, 8, toWorldZ(banana.y));
+            scene.add(mesh);
+            banana.mesh = mesh;
+        }
+
+        function updateCamera(anyBoost) {
+            const targetX = camX - 230;
+            camera.position.x += (targetX - camera.position.x) * 0.12;
+
+            const targetY = 130 + (anyBoost ? 6 : 0);
+            camera.position.y += (targetY - camera.position.y) * 0.08;
+
+            const centerZ = toWorldZ(totalWidth / 2);
+            camera.position.z += (centerZ - camera.position.z) * 0.06;
+
+            if (anyBoost) {
+                camera.position.y += (Math.random() - 0.5) * 1.6;
+                camera.position.z += (Math.random() - 0.5) * 1.6;
+            }
+
+            camera.lookAt(camera.position.x + 380, 20, centerZ);
+
+            const targetFov = anyBoost ? 62 : 55;
+            camera.fov += (targetFov - camera.fov) * 0.06;
+            camera.updateProjectionMatrix();
+        }
+
+        function draw3DScene() {
+            items.forEach((box, idx) => {
+                const mesh = itemObjects[idx];
+                mesh.visible = box.active;
+                if (box.active) {
+                    box.pulse += 0.06;
+                    mesh.position.y = 14 + Math.sin(box.pulse) * 4;
+                    mesh.rotation.y += 0.05;
+                    mesh.rotation.x += 0.015;
+                }
+            });
+
+            bananas.forEach(b => {
+                if (b.mesh) b.mesh.visible = b.active;
+            });
+
+            let anyBoost = false;
+
+            runners.forEach(runner => {
+                const obj = runnerObjects[runner.id];
+                const bobbing = Math.sin(runner.pulse) * 3.5;
+                const worldZ = toWorldZ(runner.y);
+
+                obj.group.position.set(runner.x, 0, worldZ);
+                obj.body.position.y = 15 + bobbing;
+                obj.nameSprite.position.y = 46 + bobbing;
+
+                if (runner.status === 'BOOSTER') {
+                    anyBoost = true;
+                    obj.ring.visible = true;
+                    obj.ring.material.color.setHex(0xffd166);
+                    obj.ring.rotation.z += 0.25;
+                    obj.body.material.emissiveIntensity = 1.1;
+                } else if (runner.status === 'STUN') {
+                    obj.ring.visible = true;
+                    obj.ring.material.color.setHex(0x05d9e8);
+                    obj.ring.rotation.z += 0.08;
+                    obj.body.material.emissiveIntensity = 0.25;
+                } else {
+                    obj.ring.visible = false;
+                    obj.body.material.emissiveIntensity = 0.5;
+                }
+
+                if (!runner.finished && Math.random() < 0.5) {
+                    const color = runner.status === 'BOOSTER' ? 0xffbc42 : (runner.status === 'STUN' ? 0x05d9e8 : 0x4e5d78);
+                    const size = runner.status === 'BOOSTER' ? 10 : 5;
+                    spawnParticle(runner.x - 16, 8 + Math.random() * 6, worldZ + (Math.random() * 8 - 4), color, size);
+                }
+            });
+
+            updateParticles();
+            updateCamera(anyBoost);
+
+            renderer.render(scene, camera);
+        }
 
         function goToGame() {
             initAudio(); 
@@ -607,6 +1001,8 @@
 
             miniMapContainer.innerHTML = '';
 
+            buildScene(names);
+
             runners = names.map((name, i) => {
                 const dot = document.createElement('div');
                 dot.className = 'mini-runner-dot';
@@ -626,13 +1022,14 @@
                     colorSub: teamColors[i % teamColors.length].sub,
                     finished: false,
                     pulse: Math.random() * 10,
-                    particles: [],
                     status: 'NORMAL',
                     statusTimer: 0
                 };
             });
 
-            const boxColumns = 8; 
+            buildRunnerMeshes();
+
+            const boxColumns = 8;
             for (let i = 0; i < runners.length; i++) {
                 const laneY = (i * laneHeight) + (laneHeight / 2);
                 for (let j = 0; j < boxColumns; j++) {
@@ -644,7 +1041,9 @@
                     });
                 }
             }
-            
+
+            buildItemMeshes();
+
             animationFrameId = requestAnimationFrame(updateRace);
         }
 
@@ -741,16 +1140,6 @@
                     runner.x += runner.speed;
                     runner.pulse += (runner.status === 'BOOSTER') ? 0.9 : 0.3;
 
-                    if (Math.random() < 0.4) {
-                        runner.particles.push({
-                            x: runner.x - 12,
-                            y: runner.y + 6 + (Math.random() * 6 - 3),
-                            size: runner.status === 'BOOSTER' ? Math.random() * 5 + 3 : Math.random() * 3 + 1,
-                            alpha: 0.7,
-                            color: runner.status === 'BOOSTER' ? '#ffbc42' : (runner.status === 'STUN' ? '#05d9e8' : '#4e5d78')
-                        });
-                    }
-
                     bananas.forEach(b => {
                         if (b.active && Math.abs(runner.x - b.x) < 22 && Math.abs(runner.y - b.y) < 15) {
                             b.active = false;
@@ -769,11 +1158,9 @@
                                 playBoosterSound(); 
 
                                 if (Math.random() < 0.30) {
-                                    bananas.push({
-                                        x: runner.x - 30,
-                                        y: runner.y,
-                                        active: true
-                                    });
+                                    const banana = { x: runner.x - 30, y: runner.y, active: true };
+                                    bananas.push(banana);
+                                    spawnBananaMesh(banana);
                                 }
                             } else {
                                 runner.status = 'STUN'; 
@@ -816,7 +1203,7 @@
                 camX += (targetCamX - camX) * 0.08; 
             }
 
-            drawClassicStadium();
+            draw3DScene();
 
             if (!allFinished) {
                 animationFrameId = requestAnimationFrame(updateRace);
@@ -824,110 +1211,6 @@
                 cancelAnimationFrame(animationFrameId);
                 setTimeout(goToResult, 1500); 
             }
-        }
-
-        function drawClassicStadium() {
-            ctx.fillStyle = '#1a2436';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            runners.forEach((_, i) => {
-                ctx.fillStyle = (i % 2 === 0) ? '#a24836' : '#b3533f'; 
-                ctx.fillRect(0, i * laneHeight, canvas.width, laneHeight);
-                if (i > 0) {
-                    ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3;
-                    ctx.beginPath(); ctx.moveTo(0, i * laneHeight); ctx.lineTo(canvas.width, i * laneHeight); ctx.stroke();
-                }
-            });
-
-            ctx.save(); ctx.translate(-camX, 0); 
-
-            runners.forEach((_, i) => {
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.15)'; ctx.lineWidth = 1.5;
-                ctx.setLineDash([15, 15]);
-                ctx.beginPath(); ctx.moveTo(0, i * laneHeight + laneHeight/2); ctx.lineTo(finishX + 200, i * laneHeight + laneHeight/2); ctx.stroke();
-                ctx.setLineDash([]);
-            });
-
-            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 6;
-            ctx.beginPath(); ctx.moveTo(startX, 0); ctx.lineTo(startX, canvas.height); ctx.stroke();
-            ctx.fillStyle = '#333'; ctx.fillRect(startX - 25, 0, 20, canvas.height);
-
-            const cw = 15; 
-            for (let y = 0; y < canvas.height; y += cw) {
-                for (let x = 0; x < 2; x++) {
-                    ctx.fillStyle = ((Math.floor(y / cw) + x) % 2 === 0) ? '#ffffff' : '#000000';
-                    ctx.fillRect(finishX + (x * cw), y, cw, cw);
-                }
-            }
-
-            bananas.forEach(b => {
-                if (b.active) {
-                    ctx.save();
-                    ctx.translate(b.x, b.y);
-                    ctx.shadowColor = '#ffff33'; ctx.shadowBlur = 8;
-                    ctx.fillStyle = '#ffea00';
-                    ctx.beginPath();
-                    ctx.arc(0, 0, 8, 0, Math.PI, false);
-                    ctx.closePath();
-                    ctx.fill();
-                    ctx.strokeStyle = '#d4af37'; ctx.lineWidth = 2;
-                    ctx.stroke();
-                    ctx.restore();
-                    ctx.shadowBlur = 0;
-                }
-            });
-
-            items.forEach(box => {
-                if (box.active) {
-                    box.pulse += 0.06;
-                    const sizeBounce = 18 + Math.sin(box.pulse) * 3;
-                    ctx.save(); ctx.translate(box.x, box.y); ctx.rotate(box.pulse * 0.4);
-                    ctx.shadowColor = '#ffd166'; ctx.shadowBlur = 12;
-                    ctx.fillStyle = 'rgba(255, 209, 102, 0.3)'; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 2.5;
-                    ctx.fillRect(-sizeBounce/2, -sizeBounce/2, sizeBounce, sizeBounce);
-                    ctx.strokeRect(-sizeBounce/2, -sizeBounce/2, sizeBounce, sizeBounce);
-                    ctx.fillStyle = '#fff'; ctx.font = 'bold 13px "Paperozi", sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-                    ctx.fillText('?', 0, 0); ctx.restore(); ctx.shadowBlur = 0;
-                }
-            });
-
-            runners.forEach(runner => {
-                runner.particles.forEach((p, idx) => {
-                    ctx.fillStyle = p.color; ctx.globalAlpha = p.alpha;
-                    ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2); ctx.fill();
-                    p.alpha -= 0.025;
-                    if (p.alpha <= 0) runner.particles.splice(idx, 1);
-                });
-                ctx.globalAlpha = 1.0;
-
-                const bobbing = Math.sin(runner.pulse) * 3.5;
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
-                ctx.beginPath(); ctx.arc(runner.x, runner.y + 12, 11, 0, Math.PI * 2); ctx.fill();
-
-                if (runner.status === 'BOOSTER') {
-                    ctx.shadowColor = '#ffd166'; ctx.shadowBlur = 20; ctx.strokeStyle = '#ffd166'; ctx.lineWidth = 4;
-                    ctx.beginPath(); ctx.arc(runner.x, runner.y + bobbing, 20, 0, Math.PI * 2); ctx.stroke();
-                } else if (runner.status === 'STUN') {
-                    ctx.shadowColor = '#05d9e8'; ctx.shadowBlur = 15; ctx.strokeStyle = '#05d9e8'; ctx.lineWidth = 3;
-                    ctx.setLineDash([4, 4]);
-                    ctx.beginPath(); ctx.arc(runner.x, runner.y + bobbing, 18, 0, Math.PI * 2); ctx.stroke();
-                    ctx.setLineDash([]);
-                }
-
-                let grad = ctx.createRadialGradient(runner.x - 3, runner.y + bobbing - 3, 2, runner.x, runner.y + bobbing, 15);
-                grad.addColorStop(0, runner.colorSub); grad.addColorStop(1, runner.color);
-                ctx.fillStyle = grad;
-                ctx.beginPath(); ctx.arc(runner.x, runner.y + bobbing, 15, 0, Math.PI * 2); ctx.fill();
-                ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2.5; ctx.stroke();
-                ctx.shadowBlur = 0;
-
-                ctx.fillStyle = '#ffffff'; ctx.font = '800 14px "Paperozi", sans-serif'; ctx.textAlign = 'center';
-                ctx.shadowColor = '#000000'; ctx.shadowBlur = 6;
-                ctx.fillText(runner.name, runner.x, runner.y + bobbing - 22);
-                ctx.shadowBlur = 0;
-            });
-
-            ctx.restore(); 
         }
 
         function initConfetti() {
