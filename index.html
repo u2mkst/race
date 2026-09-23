@@ -647,6 +647,22 @@
             return sprite;
         }
 
+        function makeAsphaltTexture(baseColor) {
+            const c = document.createElement('canvas');
+            c.width = 128; c.height = 128;
+            const cx = c.getContext('2d');
+            cx.fillStyle = baseColor;
+            cx.fillRect(0, 0, 128, 128);
+            for (let i = 0; i < 900; i++) {
+                const shade = Math.random() < 0.5 ? 'rgba(0,0,0,' : 'rgba(255,255,255,';
+                cx.fillStyle = shade + (Math.random() * 0.08).toFixed(3) + ')';
+                const s = Math.random() * 2.4 + 0.4;
+                cx.fillRect(Math.random() * 128, Math.random() * 128, s, s);
+            }
+            const tex = new THREE.CanvasTexture(c);
+            return tex;
+        }
+
         function makeCheckerTexture() {
             const c = document.createElement('canvas');
             c.width = 32; c.height = 32;
@@ -744,12 +760,19 @@
             rim.position.set(-300, 200, -200);
             scene.add(rim);
 
+            const asphaltA = makeAsphaltTexture('#3a4150');
+            const asphaltB = makeAsphaltTexture('#333a47');
+            [asphaltA, asphaltB].forEach(tex => {
+                tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+                tex.repeat.set(trackLength / 130, 1);
+            });
+
             for (let i = 0; i < names.length; i++) {
                 const laneCenterY = (i * laneHeight) + (laneHeight / 2);
                 const laneGeo = new THREE.PlaneGeometry(trackLength, laneHeight - 2);
                 const laneMat = new THREE.MeshStandardMaterial({
-                    color: (i % 2 === 0) ? 0xa24836 : 0xb3533f,
-                    roughness: 0.9, metalness: 0.05
+                    map: (i % 2 === 0) ? asphaltA : asphaltB,
+                    roughness: 0.95, metalness: 0.05
                 });
                 const laneMesh = new THREE.Mesh(laneGeo, laneMat);
                 laneMesh.rotation.x = -Math.PI / 2;
@@ -760,7 +783,7 @@
                     const z = toWorldZ(i * laneHeight);
                     const points = [new THREE.Vector3(trackStartX, 0.6, z), new THREE.Vector3(trackEndX, 0.6, z)];
                     const geo = new THREE.BufferGeometry().setFromPoints(points);
-                    const mat = new THREE.LineDashedMaterial({ color: 0xffffff, dashSize: 18, gapSize: 16, transparent: true, opacity: 0.35 });
+                    const mat = new THREE.LineDashedMaterial({ color: 0xffe082, dashSize: 22, gapSize: 18, transparent: true, opacity: 0.55 });
                     const line = new THREE.Line(geo, mat);
                     line.computeLineDistances();
                     scene.add(line);
@@ -775,18 +798,34 @@
                 scene.add(wall);
             });
 
-            const gateGeo = new THREE.BoxGeometry(10, 60, totalWidth + 10);
-            const gateMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.5, metalness: 0.3 });
-            const gate = new THREE.Mesh(gateGeo, gateMat);
-            gate.position.set(startX - 12, 30, toWorldZ(totalWidth / 2));
-            scene.add(gate);
+            const startCheckerTex = makeCheckerTexture();
+            startCheckerTex.wrapS = startCheckerTex.wrapT = THREE.RepeatWrapping;
+            startCheckerTex.repeat.set(1, Math.max(1, Math.round(totalWidth / 24)));
+            const startGridGeo = new THREE.PlaneGeometry(16, totalWidth);
+            const startGridMat = new THREE.MeshBasicMaterial({ map: startCheckerTex });
+            const startGrid = new THREE.Mesh(startGridGeo, startGridMat);
+            startGrid.rotation.x = -Math.PI / 2;
+            startGrid.position.set(startX, 0.4, toWorldZ(totalWidth / 2));
+            scene.add(startGrid);
 
-            const startLineGeo = new THREE.PlaneGeometry(4, totalWidth);
-            const startLineMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-            const startLine = new THREE.Mesh(startLineGeo, startLineMat);
-            startLine.rotation.x = -Math.PI / 2;
-            startLine.position.set(startX, 0.4, toWorldZ(totalWidth / 2));
-            scene.add(startLine);
+            [totalWidth / 2 + 30, -30].forEach(zEdge => {
+                const pGeo = new THREE.BoxGeometry(8, 90, 8);
+                const pMat = new THREE.MeshStandardMaterial({ color: 0xeb5e28, emissive: 0x4a1e0a, roughness: 0.4, metalness: 0.4 });
+                const pillar = new THREE.Mesh(pGeo, pMat);
+                pillar.position.set(startX, 45, toWorldZ(zEdge));
+                scene.add(pillar);
+            });
+
+            const startBeam = new THREE.Mesh(
+                new THREE.BoxGeometry(8, 10, totalWidth + 70),
+                new THREE.MeshStandardMaterial({ color: 0xeb5e28, emissive: 0x4a1e0a, roughness: 0.4, metalness: 0.4 })
+            );
+            startBeam.position.set(startX, 92, toWorldZ(totalWidth / 2));
+            scene.add(startBeam);
+
+            const startSprite = makeBannerSprite('START');
+            startSprite.position.set(startX, 125, toWorldZ(totalWidth / 2));
+            scene.add(startSprite);
 
             const checkerTex = makeCheckerTexture();
             checkerTex.wrapS = checkerTex.wrapT = THREE.RepeatWrapping;
@@ -817,8 +856,8 @@
             scene.add(finishSprite);
 
             camera = new THREE.PerspectiveCamera(55, 1000 / canvas.height, 1, 5000);
-            camera.position.set(startX - 230, 130, toWorldZ(totalWidth / 2));
-            camera.lookAt(startX + 380, 20, toWorldZ(totalWidth / 2));
+            camera.position.set(startX - 210, 105, toWorldZ(totalWidth / 2));
+            camera.lookAt(startX + 380, 14, toWorldZ(totalWidth / 2));
 
             if (!renderer) {
                 renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
@@ -839,18 +878,44 @@
             runners.forEach(runner => {
                 const group = new THREE.Group();
 
-                const bodyGeo = new THREE.SphereGeometry(15, 20, 20);
-                const bodyMat = new THREE.MeshStandardMaterial({
+                const bodyGroup = new THREE.Group();
+                bodyGroup.position.y = 11;
+                group.add(bodyGroup);
+
+                const chassisMat = new THREE.MeshStandardMaterial({
                     color: runner.color,
                     emissive: new THREE.Color(runner.color).multiplyScalar(0.35),
                     emissiveIntensity: 0.5,
-                    roughness: 0.35, metalness: 0.3
+                    roughness: 0.35, metalness: 0.35
                 });
-                const body = new THREE.Mesh(bodyGeo, bodyMat);
-                body.position.y = 15;
-                group.add(body);
+                const chassis = new THREE.Mesh(new THREE.BoxGeometry(30, 9, 18), chassisMat);
+                bodyGroup.add(chassis);
 
-                const shadowGeo = new THREE.CircleGeometry(14, 20);
+                const cabinMat = new THREE.MeshStandardMaterial({ color: 0x11141c, roughness: 0.3, metalness: 0.5 });
+                const cabin = new THREE.Mesh(new THREE.BoxGeometry(15, 8, 13), cabinMat);
+                cabin.position.set(-3, 8, 0);
+                bodyGroup.add(cabin);
+
+                const noseMat = new THREE.MeshStandardMaterial({ color: runner.colorSub, roughness: 0.3, metalness: 0.4 });
+                const nose = new THREE.Mesh(new THREE.ConeGeometry(9, 14, 4), noseMat);
+                nose.rotation.z = -Math.PI / 2;
+                nose.scale.set(1, 1, 0.7);
+                nose.position.set(20, 0, 0);
+                bodyGroup.add(nose);
+
+                const wheels = [];
+                const wheelMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.85 });
+                [[9, -9], [9, 9], [-9, -9], [-9, 9]].forEach(([wx, wz]) => {
+                    const pivot = new THREE.Group();
+                    pivot.position.set(wx, 5.5, wz);
+                    pivot.rotation.x = Math.PI / 2;
+                    const wheelMesh = new THREE.Mesh(new THREE.CylinderGeometry(5.5, 5.5, 5, 12), wheelMat);
+                    pivot.add(wheelMesh);
+                    group.add(pivot);
+                    wheels.push(wheelMesh);
+                });
+
+                const shadowGeo = new THREE.CircleGeometry(20, 20);
                 const shadowMat = new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.35 });
                 const shadowMesh = new THREE.Mesh(shadowGeo, shadowMat);
                 shadowMesh.rotation.x = -Math.PI / 2;
@@ -861,16 +926,16 @@
                 nameSprite.position.y = 46;
                 group.add(nameSprite);
 
-                const ringGeo = new THREE.TorusGeometry(22, 2, 8, 24);
+                const ringGeo = new THREE.TorusGeometry(24, 2, 8, 24);
                 const ringMat = new THREE.MeshBasicMaterial({ color: 0xffd166, transparent: true, opacity: 0.9 });
                 const ring = new THREE.Mesh(ringGeo, ringMat);
                 ring.rotation.x = Math.PI / 2;
-                ring.position.y = 15;
+                ring.position.y = 10;
                 ring.visible = false;
                 group.add(ring);
 
                 scene.add(group);
-                runnerObjects.push({ group, body, nameSprite, ring });
+                runnerObjects.push({ group, bodyGroup, chassisMat, wheels, nameSprite, ring });
             });
         }
 
@@ -899,10 +964,10 @@
         }
 
         function updateCamera(anyBoost) {
-            const targetX = camX - 230;
+            const targetX = camX - 210;
             camera.position.x += (targetX - camera.position.x) * 0.12;
 
-            const targetY = 130 + (anyBoost ? 6 : 0);
+            const targetY = 105 + (anyBoost ? 6 : 0);
             camera.position.y += (targetY - camera.position.y) * 0.08;
 
             const centerZ = toWorldZ(totalWidth / 2);
@@ -913,7 +978,7 @@
                 camera.position.z += (Math.random() - 0.5) * 1.6;
             }
 
-            camera.lookAt(camera.position.x + 380, 20, centerZ);
+            camera.lookAt(camera.position.x + 380, 14, centerZ);
 
             const targetFov = anyBoost ? 62 : 55;
             camera.fov += (targetFov - camera.fov) * 0.06;
@@ -940,33 +1005,36 @@
 
             runners.forEach(runner => {
                 const obj = runnerObjects[runner.id];
-                const bobbing = Math.sin(runner.pulse) * 3.5;
+                const bobbing = Math.sin(runner.pulse) * 2.2;
                 const worldZ = toWorldZ(runner.y);
 
                 obj.group.position.set(runner.x, 0, worldZ);
-                obj.body.position.y = 15 + bobbing;
+                obj.bodyGroup.position.y = 11 + bobbing;
+                obj.bodyGroup.rotation.z = Math.sin(runner.pulse * 0.7) * 0.04;
                 obj.nameSprite.position.y = 46 + bobbing;
+
+                obj.wheels.forEach(w => { w.rotation.y += runner.speed * 0.3; });
 
                 if (runner.status === 'BOOSTER') {
                     anyBoost = true;
                     obj.ring.visible = true;
                     obj.ring.material.color.setHex(0xffd166);
                     obj.ring.rotation.z += 0.25;
-                    obj.body.material.emissiveIntensity = 1.1;
+                    obj.chassisMat.emissiveIntensity = 1.1;
                 } else if (runner.status === 'STUN') {
                     obj.ring.visible = true;
                     obj.ring.material.color.setHex(0x05d9e8);
                     obj.ring.rotation.z += 0.08;
-                    obj.body.material.emissiveIntensity = 0.25;
+                    obj.chassisMat.emissiveIntensity = 0.25;
                 } else {
                     obj.ring.visible = false;
-                    obj.body.material.emissiveIntensity = 0.5;
+                    obj.chassisMat.emissiveIntensity = 0.5;
                 }
 
                 if (!runner.finished && Math.random() < 0.5) {
                     const color = runner.status === 'BOOSTER' ? 0xffbc42 : (runner.status === 'STUN' ? 0x05d9e8 : 0x4e5d78);
                     const size = runner.status === 'BOOSTER' ? 10 : 5;
-                    spawnParticle(runner.x - 16, 8 + Math.random() * 6, worldZ + (Math.random() * 8 - 4), color, size);
+                    spawnParticle(runner.x - 20, 6 + Math.random() * 4, worldZ + (Math.random() * 8 - 4), color, size);
                 }
             });
 
