@@ -570,12 +570,12 @@
 
         let runners = [];
         let items = [];
-        let bananas = [];
+        let bananas = []; 
         let rankRecords = [];
         let confettiParticles = [];
         let animationFrameId;
         let confettiFrameId;
-
+        
         let camX = 0;
         const startX = 120;
         const finishX = 8000;
@@ -1013,13 +1013,14 @@
             camera.position.z += (centerZ - camera.position.z) * 0.06;
 
             if (anyBoost) {
-                camera.position.y += (Math.random() - 0.5) * 1.6;
-                camera.position.z += (Math.random() - 0.5) * 1.6;
+                const t = performance.now() * 0.02;
+                camera.position.y += Math.sin(t * 1.7) * 0.6;
+                camera.position.z += Math.sin(t * 1.3 + 1.5) * 0.6;
             }
 
             camera.lookAt(camera.position.x + 380, 14, centerZ);
 
-            const targetFov = anyBoost ? 62 : 55;
+            const targetFov = anyBoost ? 60 : 55;
             camera.fov += (targetFov - camera.fov) * 0.06;
             camera.updateProjectionMatrix();
         }
@@ -1044,13 +1045,16 @@
 
             runners.forEach(runner => {
                 const obj = runnerObjects[runner.id];
-                const bobbing = Math.sin(runner.pulse) * 2.2;
+                const bobbing = Math.sin(runner.pulse) * 0.5;
                 const worldZ = toWorldZ(runner.y);
 
                 obj.group.position.set(runner.x, 0, worldZ);
                 obj.bodyGroup.position.y = 9 + bobbing;
-                obj.bodyGroup.rotation.z = Math.sin(runner.pulse * 0.7) * 0.04;
                 obj.nameSprite.position.y = 46 + bobbing;
+
+                const targetPitch = runner.status === 'BOOSTER' ? -0.055 : (runner.status === 'STUN' ? 0.09 : 0);
+                obj.pitch = (obj.pitch || 0) + (targetPitch - (obj.pitch || 0)) * 0.1;
+                obj.bodyGroup.rotation.z = obj.pitch;
 
                 obj.wheels.forEach(w => { w.rotation.y += runner.speed * 0.3; });
 
@@ -1136,7 +1140,7 @@
 
             buildRunnerMeshes();
 
-            const boxColumns = 14;
+            const boxColumns = 14; 
             for (let i = 0; i < runners.length; i++) {
                 const laneY = (i * laneHeight) + (laneHeight / 2);
                 for (let j = 0; j < boxColumns; j++) {
@@ -1150,7 +1154,7 @@
             }
 
             buildItemMeshes();
-
+            
             animationFrameId = requestAnimationFrame(updateRace);
         }
 
@@ -1245,7 +1249,7 @@
                     }
 
                     runner.x += runner.speed;
-                    runner.pulse += (runner.status === 'BOOSTER') ? 0.9 : 0.3;
+                    runner.pulse += (runner.status === 'BOOSTER') ? 0.22 : 0.09;
 
                     bananas.forEach(b => {
                         if (b.active && Math.abs(runner.x - b.x) < 22 && Math.abs(runner.y - b.y) < 15) {
@@ -1307,7 +1311,7 @@
 
             if (focusX > 400) {
                 let targetCamX = focusX - 400;
-                camX += (targetCamX - camX) * 0.13;
+                camX += (targetCamX - camX) * 0.13; 
             }
 
             draw3DScene();
